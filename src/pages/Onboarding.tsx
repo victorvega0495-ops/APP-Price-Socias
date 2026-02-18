@@ -149,20 +149,42 @@ export function OnboardingFlow({ skipWelcome = false, onComplete }: OnboardingFl
           )}
 
           {/* STEP 2 — Profit percentage */}
-          {step === 2 && (
-            <motion.div key="s2" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="flex-1 px-5 pt-6 pb-8 flex flex-col">
-              <p className="text-sm font-semibold mb-1" style={{ color: '#2D1B69' }}>¿Cuánto quieres ganar por cada venta que hagas?</p>
-              <p className="text-xs mb-6" style={{ color: '#8a8a9a' }}>Ajusta el slider y ve el impacto en tiempo real.</p>
+          {step === 2 && (() => {
+            const reposicionDecimal = 1 - pctGanancia / 100 - 0.05;
+            const incremento = Math.round(((1 / reposicionDecimal) - 1) * 100);
+            const incrementoMsg = incremento >= 50
+              ? { icon: '✅', text: `Con +${incremento}% de incremento cubres todo: producto, ganancia y gastos. ¡Vas muy bien!`, color: '#22C55E' }
+              : incremento >= 35
+              ? { icon: '👍', text: `Con +${incremento}% de incremento tendrás ganancia pero ojo: revisa que cubras tus gastos.`, color: '#6B2FA0' }
+              : { icon: '⚠️', text: `Con solo +${incremento}% de incremento puede que no alcance para reponer tu producto. Considera subir tu precio de venta.`, color: '#F59E0B' };
+
+            return (
+            <motion.div key="s2" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="flex-1 px-5 pt-6 pb-8 flex flex-col overflow-y-auto">
+              <p className="text-sm font-semibold mb-1" style={{ color: '#2D1B69' }}>Primero separemos tu negocio</p>
+              <p className="text-xs mb-4" style={{ color: '#8a8a9a' }}>Ajusta el slider y ve el impacto en tiempo real.</p>
+
+              {/* Explicación método recomendado */}
+              <div className="rounded-2xl p-4 mb-4 text-white text-xs space-y-2" style={{ background: 'linear-gradient(135deg, #1a103f, #2D1B69)' }}>
+                <p className="font-semibold text-sm">💡 El método recomendado por Price Shoes:</p>
+                <div className="space-y-1 pl-1">
+                  <p>• 65% → Repones tu producto (CrediPrice)</p>
+                  <p>• 30% → Es tu ganancia personal</p>
+                  <p>• 5% → Gastos de tu negocio</p>
+                </div>
+                <p className="pt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>Para lograr esto, debes cobrarle a tu clienta un 54% más de lo que te costó el producto.</p>
+                <p style={{ color: 'rgba(255,255,255,0.7)' }}>Ejemplo: si pagaste $650, cóbrale $1,000</p>
+              </div>
 
               <div className="bg-white rounded-2xl p-5 space-y-4" style={{ boxShadow: CARD_SHADOW }}>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold" style={{ color: '#2D1B69' }}>Tu ganancia</span>
-                  <span className="text-xl font-black" style={{ color: '#6B2FA0', fontFamily: 'Nunito, sans-serif' }}>{pctGanancia}%</span>
+                  <span className="text-xl font-black font-nunito" style={{ color: '#6B2FA0' }}>{pctGanancia}%</span>
                 </div>
                 <Slider value={[pctGanancia]} onValueChange={([v]) => setPctGanancia(v)} min={10} max={50} step={1} />
-                <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: msg.color + '15' }}>
-                  <span className="text-lg">{msg.icon}</span>
-                  <p className="text-xs" style={{ color: '#2D1B69' }}>{msg.text}</p>
+                {/* Incremento dinámico */}
+                <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: incrementoMsg.color + '15' }}>
+                  <span className="text-lg">{incrementoMsg.icon}</span>
+                  <p className="text-xs" style={{ color: '#2D1B69' }}>{incrementoMsg.text}</p>
                 </div>
               </div>
 
@@ -176,19 +198,25 @@ export function OnboardingFlow({ skipWelcome = false, onComplete }: OnboardingFl
                 </div>
                 <div className="pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
                   <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>🏷️ Por cada ${Math.round(costoProducto)} que pagas a Price, le cobras a tu clienta:</p>
-                  <p className="text-lg font-black mt-1" style={{ fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(Math.round(precioSugerido))}</p>
+                  <p className="text-lg font-black font-nunito mt-1">{formatCurrency(Math.round(precioSugerido))}</p>
                 </div>
               </div>
 
               <div className="flex-1" />
               <Button onClick={() => setStep(3)} className="w-full h-12 rounded-xl text-white font-semibold mt-4" style={{ background: '#6B2FA0' }}>Siguiente →</Button>
             </motion.div>
-          )}
+            );
+          })()}
 
           {/* STEP 3 — Savings */}
-          {step === 3 && (
-            <motion.div key="s3" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="flex-1 px-5 pt-6 pb-8 flex flex-col">
-              <p className="text-sm font-semibold mb-1" style={{ color: '#2D1B69' }}>De tu ganancia, ¿quieres apartar algo para tus sueños?</p>
+          {step === 3 && (() => {
+            const metaVentasMes = 33333;
+            const gananciaMes = metaVentasMes * (pctGanancia / 100);
+            const ahorroMes = gananciaMes * (pctAhorro / 100);
+
+            return (
+            <motion.div key="s3" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="flex-1 px-5 pt-6 pb-8 flex flex-col overflow-y-auto">
+              <p className="text-sm font-semibold mb-1" style={{ color: '#2D1B69' }}>De tu ganancia del {pctGanancia}%, ¿cuánto quieres apartar para tus sueños?</p>
               <p className="text-xs mb-5" style={{ color: '#8a8a9a' }}>Ahorrar te acerca a tu Reto más rápido.</p>
 
               <div className="space-y-3">
@@ -204,17 +232,21 @@ export function OnboardingFlow({ skipWelcome = false, onComplete }: OnboardingFl
                 </button>
               </div>
 
-              {wantsToSave && (
+              {wantsToSave === true && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4">
                   <div className="bg-white rounded-2xl p-5 space-y-4" style={{ boxShadow: CARD_SHADOW }}>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold" style={{ color: '#2D1B69' }}>¿Cuánto ahorras?</span>
-                      <span className="text-xl font-black" style={{ color: '#6B2FA0', fontFamily: 'Nunito, sans-serif' }}>{pctAhorro}%</span>
+                      <span className="text-xl font-black font-nunito" style={{ color: '#6B2FA0' }}>{pctAhorro}%</span>
                     </div>
                     <Slider value={[pctAhorro]} onValueChange={([v]) => setPctAhorro(v)} min={5} max={50} step={1} />
                     <div className="rounded-xl p-4 space-y-2" style={{ background: '#F0E6F6' }}>
-                      <p className="text-xs" style={{ color: '#2D1B69' }}>De cada $1,000 vendidos, <strong>{formatCurrency(Math.round(montoAhorro))}</strong> irán a tus sueños.</p>
-                      <p className="text-xs" style={{ color: '#6B2FA0' }}>🌟 En 12 meses habrás ahorrado <strong>{formatCurrency(Math.round(montoAhorro * 12))}</strong></p>
+                      <p className="text-xs font-semibold" style={{ color: '#2D1B69' }}>Si vendes {formatCurrency(metaVentasMes)} al mes (meta del Reto):</p>
+                      <div className="space-y-1 text-xs" style={{ color: '#2D1B69' }}>
+                        <p>⭐ Ahorras: <strong>{formatCurrency(Math.round(ahorroMes))}</strong> al mes</p>
+                        <p>📅 En 12 meses: <strong>{formatCurrency(Math.round(ahorroMes * 12))}</strong></p>
+                        <p>🏆 Tu Reto te da: <strong>{formatCurrency(Math.round(ahorroMes))}</strong> directo a tus sueños este mes</p>
+                      </div>
                       <div className="pt-2 border-t" style={{ borderColor: 'rgba(45,27,105,0.1)' }}>
                         <p className="text-[11px]" style={{ color: '#8a8a9a' }}>
                           🏠 Necesidades {formatCurrency(Math.round(montoNecesidades))} · ✨ Deseos {formatCurrency(Math.round(montoDeseos))} · ⭐ Ahorro {formatCurrency(Math.round(montoAhorro))}
@@ -225,10 +257,19 @@ export function OnboardingFlow({ skipWelcome = false, onComplete }: OnboardingFl
                 </motion.div>
               )}
 
+              {wantsToSave === false && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4">
+                  <div className="rounded-2xl p-4" style={{ background: '#F0E6F6' }}>
+                    <p className="text-xs" style={{ color: '#2D1B69' }}>Sin problema. Toda tu ganancia va a necesidades y deseos. Puedes activar el ahorro cuando quieras desde <strong>Mi Cuenta</strong>.</p>
+                  </div>
+                </motion.div>
+              )}
+
               <div className="flex-1" />
               <Button onClick={() => setStep(4)} disabled={wantsToSave === null} className="w-full h-12 rounded-xl text-white font-semibold mt-4" style={{ background: '#6B2FA0' }}>Siguiente →</Button>
             </motion.div>
-          )}
+            );
+          })()}
 
           {/* STEP 4 — Summary */}
           {step === 4 && (
