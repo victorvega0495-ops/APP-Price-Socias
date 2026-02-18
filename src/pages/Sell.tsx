@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Sparkles, ShoppingBag, Send, RotateCcw, Trash2, Check, RefreshCw } from 'lucide-react';
+import { Plus, Sparkles, ShoppingBag, Send, Trash2, Check, Copy, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // --- Types ---
 interface ClientOption { id: string; name: string; phone: string | null; }
@@ -73,6 +74,12 @@ const CATEGORY_GROUPS = [
   },
 ];
 
+const cleanPhone = (phone: string | null): string | null => {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, '').slice(-10);
+  return digits.length === 10 ? digits : null;
+};
+
 export default function Sell() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -82,7 +89,7 @@ export default function Sell() {
   const [mode, setMode] = useState<'calc' | 'direct'>('calc');
 
   // ========================
-  // Calculator state (unchanged)
+  // Calculator state
   // ========================
   const [partnerPrice, setPartnerPrice] = useState(0);
   const [incrementMode, setIncrementMode] = useState<'percent' | 'amount'>('percent');
@@ -91,11 +98,18 @@ export default function Sell() {
   const [creditCommission, setCreditCommission] = useState(10);
   const [numPayments, setNumPayments] = useState(1);
 
+  // Calc WhatsApp state
+  const [calcWaDialogOpen, setCalcWaDialogOpen] = useState(false);
+  const [calcWaClientId, setCalcWaClientId] = useState('');
+  const [calcWaManualPhone, setCalcWaManualPhone] = useState('');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+
   // ========================
-  // Registration state (new flow)
+  // Registration state
   // ========================
   const [clientsList, setClientsList] = useState<ClientOption[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
+  const [clientCollapsed, setClientCollapsed] = useState(false);
   const [addingClient, setAddingClient] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
@@ -120,7 +134,7 @@ export default function Sell() {
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // --- Calculator computations (kept identical) ---
+  // --- Calculator computations ---
   const incrementAmount = incrementMode === 'percent'
     ? partnerPrice * (incrementValue / 100)
     : incrementValue;
@@ -154,7 +168,13 @@ export default function Sell() {
 
   const regPaymentAmt = regSaleType === 'credit' && regNumPayments > 0 ? totalCharged / regNumPayments : totalCharged;
 
-  // useEffect auto-calc removed — now handled inline in onChange of itemCost
+  const selectedClient = clientsList.find(c => c.id === selectedClientId);
+
+  const filteredClients = useMemo(() => {
+    if (!clientSearchQuery.trim()) return clientsList;
+    const q = clientSearchQuery.toLowerCase();
+    return clientsList.filter(c => c.name.toLowerCase().includes(q));
+  }, [clientsList, clientSearchQuery]);
 
   const loadClients = async () => {
     if (!user) return;
@@ -178,6 +198,7 @@ export default function Sell() {
     if (data) {
       setClientsList(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       setSelectedClientId(data.id);
+      setClientCollapsed(true);
     }
     setNewClientName('');
     setNewClientPhone('');
@@ -214,6 +235,7 @@ export default function Sell() {
   const resetForm = () => {
     setItems([]);
     setSelectedClientId('');
+    setClientCollapsed(false);
     setSaleDesc('');
     setReceipt(null);
     setRegSaleType('cash');
@@ -238,7 +260,6 @@ export default function Sell() {
     setSaving(true);
 
     try {
-      // If new client inline
       let clientId = selectedClientId;
       let clientName = clientsList.find(c => c.id === clientId)?.name || '';
       let clientPhone = clientsList.find(c => c.id === clientId)?.phone || null;
@@ -272,7 +293,6 @@ export default function Sell() {
 
       if (error || !purchase) throw error;
 
-      // Insert sale_items
       await supabase.from('sale_items').insert(
         items.map(i => ({
           purchase_id: purchase.id,
@@ -281,7 +301,6 @@ export default function Sell() {
         }))
       );
 
-      // Insert credit_payments
       if (regSaleType === 'credit' && regNumPayments > 0) {
         await supabase.from('credit_payments').insert(
           creditPaymentDates.map((d, idx) => ({
@@ -294,7 +313,6 @@ export default function Sell() {
         );
       }
 
-      // Update client last_purchase_date
       if (clientId) {
         await supabase.from('clients')
           .update({ last_purchase_date: new Date().toISOString().split('T')[0] })
@@ -340,7 +358,7 @@ export default function Sell() {
     if (sociaName) text += `%0A%0A${sociaName}`;
     if (sociaPhone) {
       const clean = sociaPhone.replace(/\D/g, '').slice(-10);
-      text += `%0A📱 ${clean.slice(0,2)}-${clean.slice(2,6)}-${clean.slice(6)}`;
+      text += `%0A📱 ${clean.slice(0, 2)}-${clean.slice(2, 6)}-${clean.slice(6)}`;
     }
     text += `%0A%0A¡Gracias por tu preferencia! 💛`;
     return text;
@@ -348,11 +366,9 @@ export default function Sell() {
 
   const buildWhatsappUrl = (): string | null => {
     if (!receipt?.clientPhone) return null;
-    let digits = receipt.clientPhone.replace(/\D/g, '');
-    if (digits.length === 12 && digits.startsWith('52')) digits = digits.slice(2);
-    if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
-    if (digits.length !== 10) return null;
-    return `https://wa.me/52${digits}?text=${buildText()}`;
+    const clean = cleanPhone(receipt.clientPhone);
+    if (!clean) return null;
+    return `https://wa.me/52${clean}?text=${buildText()}`;
   };
 
   const openWhatsapp = () => {
@@ -364,6 +380,29 @@ export default function Sell() {
     }
   };
 
+  // Calc mode WhatsApp
+  const sendCalcPriceWa = () => {
+    let phone: string | null = null;
+    if (calcWaClientId) {
+      const c = clientsList.find(cl => cl.id === calcWaClientId);
+      phone = cleanPhone(c?.phone || null);
+    } else if (calcWaManualPhone) {
+      phone = cleanPhone(calcWaManualPhone);
+    }
+    if (!phone) {
+      toast({ title: 'Ingresa un teléfono válido', variant: 'destructive' });
+      return;
+    }
+    const text = `Hola, te comparto el precio: ${formatCurrencyDecimals(clientPrice)} 😊 ¿Te lo apartamos?`;
+    window.open(`https://wa.me/52${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    setCalcWaDialogOpen(false);
+  };
+
+  const copyCalcPrice = () => {
+    navigator.clipboard.writeText(formatCurrencyDecimals(clientPrice));
+    toast({ title: 'Precio copiado 📋' });
+  };
+
   // ========================
   // RECEIPT
   // ========================
@@ -373,7 +412,7 @@ export default function Sell() {
     const sociaPhone = profile?.phone || '';
     const formattedSociaPhone = sociaPhone ? (() => {
       const clean = sociaPhone.replace(/\D/g, '').slice(-10);
-      return `${clean.slice(0,2)}-${clean.slice(2,6)}-${clean.slice(6)}`;
+      return `${clean.slice(0, 2)}-${clean.slice(2, 6)}-${clean.slice(6)}`;
     })() : '';
     return (
       <motion.div
@@ -400,7 +439,6 @@ export default function Sell() {
             </p>
           )}
           <p className="opacity-60 text-xs text-center">{receipt.date}</p>
-          {/* Socia info */}
           <div className="border-t border-primary-foreground/20 mt-3 pt-3 text-center space-y-0.5">
             <p className="text-sm">Gracias por tu compra 💛</p>
             {sociaName && <p className="text-sm font-semibold">{sociaName}</p>}
@@ -428,96 +466,70 @@ export default function Sell() {
   };
 
   // ========================
-  // REGISTRATION MODE (new)
+  // REGISTRATION MODE
   // ========================
   const renderRegistration = () => (
-    <div className="space-y-4">
-      {/* STEP 1 — Client & sale type */}
+    <div className="space-y-4 pb-20">
+      {/* STEP 1 — ¿A quién? (collapsible) */}
       <div className="bg-card rounded-xl p-4 shadow-card space-y-3">
         <p className="text-sm font-semibold text-foreground">Paso 1 — ¿A quién le vendiste?</p>
 
-        <select
-          value={selectedClientId}
-          onChange={e => { setSelectedClientId(e.target.value); setAddingClient(false); }}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <option value="">Selecciona una clienta</option>
-          {clientsList.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-
-        <AnimatePresence>
-          {addingClient ? (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2 overflow-hidden">
-              <Input value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="Nombre" />
-              <Input value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} placeholder="Teléfono (10 dígitos)" type="tel" />
-              <div className="flex gap-2">
-                <Button onClick={addNewClient} size="sm" className="bg-navy text-primary-foreground text-xs">Guardar</Button>
-                <Button onClick={() => setAddingClient(false)} size="sm" variant="ghost" className="text-xs">Cancelar</Button>
-              </div>
-            </motion.div>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={() => setAddingClient(true)} className="text-xs text-navy h-7">
-              <Plus className="w-3 h-3 mr-1" /> Nueva clienta
-            </Button>
-          )}
-        </AnimatePresence>
-
-        {/* Sale type */}
-        <div>
-          <Label className="text-sm font-medium">Tipo de venta</Label>
-          <div className="grid grid-cols-2 gap-2 mt-1">
-            {(['cash', 'credit'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setRegSaleType(t)}
-                className={`py-2.5 rounded-xl text-sm font-medium transition-all border-2 ${
-                  regSaleType === t
-                    ? 'border-[hsl(var(--navy))] bg-navy text-primary-foreground'
-                    : 'border-border bg-muted text-foreground'
-                }`}
-              >
-                {t === 'cash' ? '💵 Contado' : '💳 Crédito'}
-              </button>
-            ))}
+        {clientCollapsed && selectedClient ? (
+          <div className="flex items-center justify-between bg-muted rounded-lg px-3 py-2">
+            <span className="text-sm font-medium">✓ {selectedClient.name}</span>
+            <button
+              onClick={() => setClientCollapsed(false)}
+              className="text-xs text-navy font-medium"
+            >
+              Cambiar
+            </button>
           </div>
-        </div>
-
-        <AnimatePresence>
-          {regSaleType === 'credit' && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2 overflow-hidden">
-              <Label className="text-sm">Número de pagos</Label>
-              <div className="flex gap-2">
-                {[2, 3, 4, 6].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setRegNumPayments(n)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all ${
-                      regNumPayments === n
-                        ? 'border-[hsl(var(--navy))] bg-navy text-primary-foreground'
-                        : 'border-border bg-muted text-foreground'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              {creditPaymentDates.length > 0 && totalCharged > 0 && (
-                <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
-                  <p className="font-semibold text-navy">{regNumPayments} pagos de {formatCurrencyDecimals(regPaymentAmt)}</p>
-                  {creditPaymentDates.map((d, i) => {
-                    const dt = new Date(d + 'T12:00:00');
-                    return <p key={i}>Pago {i + 1}: {dt.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</p>;
-                  })}
-                </div>
+        ) : (
+          <>
+            <Input
+              value={clientSearchQuery}
+              onChange={e => setClientSearchQuery(e.target.value)}
+              placeholder="Buscar clienta..."
+              className="text-sm"
+            />
+            <div className="max-h-40 overflow-y-auto space-y-1 border border-border rounded-lg p-1 bg-background">
+              {filteredClients.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => { setSelectedClientId(c.id); setClientCollapsed(true); setClientSearchQuery(''); }}
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors ${
+                    selectedClientId === c.id ? 'bg-muted font-medium' : ''
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+              {filteredClients.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">No se encontró clienta</p>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+
+            <AnimatePresence>
+              {addingClient ? (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2 overflow-hidden">
+                  <Input value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="Nombre" />
+                  <Input value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} placeholder="Teléfono (10 dígitos)" type="tel" />
+                  <div className="flex gap-2">
+                    <Button onClick={addNewClient} size="sm" className="bg-navy text-primary-foreground text-xs">Guardar</Button>
+                    <Button onClick={() => setAddingClient(false)} size="sm" variant="ghost" className="text-xs">Cancelar</Button>
+                  </div>
+                </motion.div>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => setAddingClient(true)} className="text-xs text-navy h-7">
+                  <Plus className="w-3 h-3 mr-1" /> Nueva clienta
+                </Button>
+              )}
+            </AnimatePresence>
+          </>
+        )}
       </div>
 
-      {/* STEP 2 — Items */}
+      {/* STEP 2 — ¿Qué vendiste? */}
       <div className="bg-card rounded-xl p-4 shadow-card space-y-3">
         <p className="text-sm font-semibold text-foreground">Paso 2 — ¿Qué vendiste?</p>
 
@@ -548,7 +560,35 @@ export default function Sell() {
               exit={{ opacity: 0, height: 0 }}
               className="border border-border rounded-xl p-3 space-y-3 overflow-hidden"
             >
-              {/* Category grid */}
+              {/* Fields FIRST, then categories */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label className="text-xs">Cantidad</Label>
+                  <Input type="number" value={itemQty} onChange={e => setItemQty(Math.max(1, Number(e.target.value) || 1))} min={1} className="mt-1 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">Te costó ($)</Label>
+                  <Input type="number" value={itemCostInput} onChange={e => { const raw = e.target.value; setItemCostInput(raw); if (!itemSaleManual) { const num = Number(raw) || 0; const suggested = Math.round(num * (1 + pctGanancia / 100)); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); } }} placeholder="0" className="mt-1 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">Le cobras ($)</Label>
+                  <div className="flex gap-1 mt-1">
+                    <Input type="number" value={itemSaleInput} onChange={e => { setItemSaleInput(e.target.value); setItemSaleManual(true); }} placeholder="0" className="text-sm flex-1" />
+                    {itemSaleManual && Number(itemCostInput) > 0 && (
+                      <button
+                        onClick={() => { const num = Number(itemCostInput) || 0; const suggested = Math.round(num * (1 + pctGanancia / 100)); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); setItemSaleManual(false); }}
+                        className="text-[10px] text-navy shrink-0 px-1"
+                        title="Recalcular"
+                      >↺</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {Number(itemCostInput) > 0 && !itemSaleManual && (
+                <p className="text-[10px] text-muted-foreground">Auto: +{pctGanancia}% ganancia del perfil</p>
+              )}
+
+              {/* Category grid BELOW fields */}
               {CATEGORY_GROUPS.map(group => (
                 <div key={group.label}>
                   <p className="text-xs text-muted-foreground font-medium mb-1.5">{group.label}</p>
@@ -569,34 +609,6 @@ export default function Sell() {
                   </div>
                 </div>
               ))}
-
-              {/* Quantity & prices */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Label className="text-xs">Cantidad</Label>
-                  <Input type="number" value={itemQty} onChange={e => setItemQty(Math.max(1, Number(e.target.value) || 1))} min={1} className="mt-1 text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs">Te costó ($)</Label>
-                  <Input type="number" value={itemCostInput} onChange={e => { const raw = e.target.value; setItemCostInput(raw); if (!itemSaleManual) { const num = Number(raw) || 0; const suggested = Math.round(num * (1 + pctGanancia / 100)); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); } }} placeholder="0" className="mt-1 text-sm" />
-                </div>
-              <div>
-                  <Label className="text-xs">Le cobras ($)</Label>
-                  <div className="flex gap-1 mt-1">
-                    <Input type="number" value={itemSaleInput} onChange={e => { setItemSaleInput(e.target.value); setItemSaleManual(true); }} placeholder="0" className="text-sm flex-1" />
-                    {itemSaleManual && Number(itemCostInput) > 0 && (
-                      <button
-                        onClick={() => { const num = Number(itemCostInput) || 0; const suggested = Math.round(num * (1 + pctGanancia / 100)); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); setItemSaleManual(false); }}
-                        className="text-[10px] text-navy shrink-0 px-1"
-                        title="Recalcular"
-                      >↺</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {Number(itemCostInput) > 0 && !itemSaleManual && (
-                <p className="text-[10px] text-muted-foreground">Auto: +{pctGanancia}% ganancia del perfil</p>
-              )}
 
               <Button
                 onClick={addItemToList}
@@ -659,25 +671,83 @@ export default function Sell() {
         )}
       </AnimatePresence>
 
-      {/* STEP 3 — Description */}
-      <div className="bg-card rounded-xl p-4 shadow-card">
-        <Label className="text-sm font-medium">Paso 3 — Descripción (opcional)</Label>
-        <Input
-          value={saleDesc}
-          onChange={e => setSaleDesc(e.target.value)}
-          placeholder="Ej: Zapatillas negras talla 6, falda roja"
-          className="mt-1"
-        />
+      {/* STEP 3 — ¿Cómo paga? */}
+      <div className="bg-card rounded-xl p-4 shadow-card space-y-3">
+        <p className="text-sm font-semibold text-foreground">Paso 3 — ¿Cómo paga?</p>
+
+        <div className="grid grid-cols-2 gap-2">
+          {(['cash', 'credit'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setRegSaleType(t)}
+              className={`py-2.5 rounded-xl text-sm font-medium transition-all border-2 ${
+                regSaleType === t
+                  ? 'border-[hsl(var(--navy))] bg-navy text-primary-foreground'
+                  : 'border-border bg-muted text-foreground'
+              }`}
+            >
+              {t === 'cash' ? '💵 Contado' : '💳 Crédito'}
+            </button>
+          ))}
+        </div>
+
+        <AnimatePresence>
+          {regSaleType === 'credit' && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2 overflow-hidden">
+              <Label className="text-sm">¿Cuántos pagos?</Label>
+              <div className="flex gap-2">
+                {[2, 3, 4, 6].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setRegNumPayments(n)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all ${
+                      regNumPayments === n
+                        ? 'border-[hsl(var(--navy))] bg-navy text-primary-foreground'
+                        : 'border-border bg-muted text-foreground'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              {creditPaymentDates.length > 0 && totalCharged > 0 && (
+                <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
+                  <p className="font-semibold text-navy">{regNumPayments} pagos de {formatCurrencyDecimals(regPaymentAmt)}</p>
+                  {creditPaymentDates.map((d, i) => {
+                    const dt = new Date(d + 'T12:00:00');
+                    return <p key={i}>Pago {i + 1}: {dt.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</p>;
+                  })}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Optional description */}
+        <div>
+          <Label className="text-xs text-muted-foreground">Descripción (opcional)</Label>
+          <Input
+            value={saleDesc}
+            onChange={e => setSaleDesc(e.target.value)}
+            placeholder="Ej: Zapatillas negras talla 6"
+            className="mt-1 text-sm"
+          />
+        </div>
       </div>
 
-      {/* SAVE */}
-      <Button
-        onClick={saveSale}
-        disabled={items.length === 0 || (!selectedClientId && !newClientName.trim()) || saving}
-        className="w-full h-12 rounded-xl text-sm font-semibold bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-primary-foreground"
-      >
-        <ShoppingBag className="w-4 h-4 mr-2" /> Registrar venta 💾
-      </Button>
+      {/* STICKY SAVE BUTTON */}
+      <div className="fixed bottom-16 left-0 right-0 px-4 pb-2 z-30">
+        <Button
+          onClick={saveSale}
+          disabled={items.length === 0 || (!selectedClientId && !newClientName.trim()) || saving}
+          className="w-full h-12 rounded-xl text-sm font-semibold bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-primary-foreground shadow-lg"
+        >
+          <ShoppingBag className="w-4 h-4 mr-2" />
+          {items.length > 0
+            ? `Registrar venta · ${formatCurrencyDecimals(totalCharged)}`
+            : 'Registrar venta'}
+        </Button>
+      </div>
     </div>
   );
 
@@ -713,7 +783,7 @@ export default function Sell() {
         renderReceipt()
       ) : (
         <div className="space-y-4">
-          {/* MODE 1: Calculator (unchanged) */}
+          {/* MODE 1: Calculator */}
           {mode === 'calc' && (
             <>
               <div className="bg-card rounded-xl p-5 shadow-card space-y-4">
@@ -860,6 +930,23 @@ export default function Sell() {
                       )}
                     </div>
 
+                    {/* WhatsApp & Copy buttons */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        onClick={() => setCalcWaDialogOpen(true)}
+                        className="bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-primary-foreground text-xs h-10"
+                      >
+                        <MessageCircle className="w-4 h-4 mr-1" /> Compartir por WhatsApp
+                      </Button>
+                      <Button
+                        onClick={copyCalcPrice}
+                        variant="outline"
+                        className="text-xs h-10"
+                      >
+                        <Copy className="w-4 h-4 mr-1" /> Copiar precio
+                      </Button>
+                    </div>
+
                     <div className="grid grid-cols-3 gap-2">
                       <div className="bg-[hsl(142,71%,93%)] rounded-xl p-3 text-center">
                         <p className="text-[10px] text-[hsl(142,71%,25%)] font-medium">Producto / CrediPrice 65%</p>
@@ -880,10 +967,46 @@ export default function Sell() {
             </>
           )}
 
-          {/* MODE 2: Registration (new flow) */}
+          {/* MODE 2: Registration */}
           {mode === 'direct' && renderRegistration()}
         </div>
       )}
+
+      {/* WhatsApp Dialog for Calc mode */}
+      <Dialog open={calcWaDialogOpen} onOpenChange={setCalcWaDialogOpen}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>📲 Compartir precio</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Selecciona una clienta o escribe un número:</p>
+            <select
+              value={calcWaClientId}
+              onChange={e => { setCalcWaClientId(e.target.value); setCalcWaManualPhone(''); }}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Selecciona clienta</option>
+              {clientsList.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <div className="text-center text-xs text-muted-foreground">o</div>
+            <Input
+              value={calcWaManualPhone}
+              onChange={e => { setCalcWaManualPhone(e.target.value); setCalcWaClientId(''); }}
+              placeholder="Teléfono (10 dígitos)"
+              type="tel"
+            />
+            <Button
+              onClick={sendCalcPriceWa}
+              disabled={!calcWaClientId && !calcWaManualPhone}
+              className="w-full bg-[hsl(142,71%,35%)] text-primary-foreground"
+            >
+              <Send className="w-4 h-4 mr-1" /> Enviar por WhatsApp
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

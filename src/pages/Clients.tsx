@@ -387,16 +387,19 @@ export default function Clients() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {c.last_purchase_date ? `Última compra: ${formatDate(c.last_purchase_date)}` : 'Sin compras'}
-                  </p>
+                  (c.pending_balance || 0) > 0 ? (
+                    <p className="text-xs font-semibold text-destructive">
+                      Debe {formatCurrency(c.pending_balance || 0)}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {c.last_purchase_date ? `Compró · ${formatDate(c.last_purchase_date)}` : 'Sin compras'}
+                    </p>
+                  )
                 )}
               </button>
 
               <div className="flex items-center gap-2 ml-2">
-                {filter === 'all' && (c.pending_balance || 0) > 0 && (
-                  <p className="text-sm font-semibold text-destructive">{formatCurrency(c.pending_balance || 0)}</p>
-                )}
                 {filter === 'cobranza' && (
                   <WhatsAppButton client={c} message={waMessage} />
                 )}

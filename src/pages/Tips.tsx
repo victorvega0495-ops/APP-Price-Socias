@@ -132,6 +132,7 @@ export default function Tips() {
         totalGap += (new Date(sorted[i]).getTime() - new Date(sorted[i - 1]).getTime()) / (1000 * 60 * 60 * 24);
       }
       const cycleDays = Math.round(totalGap / (sorted.length - 1));
+      if (cycleDays <= 0) return;
       const lastDate = new Date(sorted[sorted.length - 1]);
       const daysSinceLast = Math.round((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
       const daysUntilNext = cycleDays - daysSinceLast;
@@ -273,7 +274,7 @@ export default function Tips() {
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-navy">⏰ Momento de escribirles</h2>
         {cycleClients.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Todas tus clientas están al día por ahora 👍</p>
+          <p className="text-sm text-muted-foreground">Aún no hay suficiente historial para detectar patrones. ¡Sigue registrando tus ventas! 📊</p>
         ) : (
           cycleClients.map(cc => (
             <Card key={cc.client.id} className="overflow-hidden">
@@ -343,7 +344,7 @@ export default function Tips() {
               {stats.topCat ? (
                 <p className="font-bold text-sm text-navy">{stats.topCat[0]}</p>
               ) : (
-                <p className="text-[10px] text-muted-foreground">Registra ventas para ver tu producto estrella</p>
+                <p className="text-[10px] text-muted-foreground">Registra ventas con categorías para ver tu producto estrella ⭐</p>
               )}
             </CardContent>
           </Card>
@@ -366,7 +367,7 @@ export default function Tips() {
                   <p className="text-[10px]">{marginIcon} {marginLabel}</p>
                 </>
               ) : (
-                <p className="text-[10px] text-muted-foreground">Agrega costos al registrar ventas para ver tu margen</p>
+                <p className="text-[10px] text-muted-foreground">Agrega el costo al registrar ventas para ver tu margen real 💡</p>
               )}
             </CardContent>
           </Card>

@@ -238,7 +238,11 @@ export default function Dashboard() {
           <p className="text-3xl font-bold text-primary-foreground mt-1">
             {formatCurrency(totalRealMes)}
           </p>
-          <p className="text-xs text-primary-foreground/50 mt-0.5">vendido este mes</p>
+          <p className="text-xs text-primary-foreground/50 mt-0.5">
+            {totalRealMes === 0 && monthlyTarget > 0
+              ? '¡Registra tu primera venta de hoy! 💪'
+              : 'vendido este mes'}
+          </p>
 
           {/* Progress bar toward monthly sales goal */}
           {challengeMonthlySales !== null && challengeMonthlySales > 0 ? (
@@ -256,6 +260,10 @@ export default function Dashboard() {
                 <span>Meta: {formatCurrency(metaVentas)} en ventas</span>
               </div>
               <Progress value={goalProgress} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold shadow-gold" />
+            </div>
+          ) : totalRealMes === 0 ? (
+            <div className="mt-3 text-sm text-primary-foreground/70 text-center">
+              ¡Bienvenida! <Link to="/mis-metas" className="text-gold font-semibold hover:underline">Configura tu meta</Link> y registra tu primera venta para empezar 🚀
             </div>
           ) : (
             <Link to="/mis-metas" className="block mt-3 text-sm text-gold font-semibold hover:underline">

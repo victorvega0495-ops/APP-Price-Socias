@@ -13,8 +13,9 @@ import {
 } from '@/components/ui/dialog';
 import { Target, Calendar, Pencil, Lock } from 'lucide-react';
 
-const GOAL_TEMPLATES = [
-  { type: 'reto', emoji: '🏆', name: 'Reto 0 a 10,000', fixed: true, fixedAmount: 10000, fixedMonths: 1 },
+const RETO_TEMPLATE = { type: 'reto', emoji: '🏆', name: 'Reto 0 a 10,000', fixed: true, fixedAmount: 10000, fixedMonths: 1 } as const;
+
+const DREAM_TEMPLATES = [
   { type: 'coche', emoji: '🚗', name: 'Mi coche', fixed: false },
   { type: 'casa', emoji: '🏠', name: 'Mi casa / renta', fixed: false },
   { type: 'vacaciones', emoji: '✈️', name: 'Mis vacaciones', fixed: false },
@@ -22,7 +23,8 @@ const GOAL_TEMPLATES = [
   { type: 'personalizada', emoji: '✏️', name: 'Meta personalizada', fixed: false },
 ] as const;
 
-type GoalTemplate = typeof GOAL_TEMPLATES[number];
+const ALL_TEMPLATES = [RETO_TEMPLATE, ...DREAM_TEMPLATES];
+type GoalTemplate = typeof ALL_TEMPLATES[number];
 
 interface ActiveGoal {
   id: string;
@@ -42,7 +44,7 @@ function getMotivationalPhrase(pct: number) {
 }
 
 function getEmojiForType(type: string) {
-  return GOAL_TEMPLATES.find(t => t.type === type)?.emoji ?? '🎯';
+  return ALL_TEMPLATES.find(t => t.type === type)?.emoji ?? '🎯';
 }
 
 export default function Challenge() {
@@ -189,6 +191,9 @@ export default function Challenge() {
   const remainingForMonth = Math.max(0, monthlyTarget - monthlySales);
   const dreamProgress = activeGoal ? progressPercentage(totalProfit, activeGoal.target_amount) : 0;
 
+  const isRetoActive = activeGoal?.target_type === 'reto';
+  const isDreamActive = activeGoal && activeGoal.target_type !== 'reto';
+
   return (
     <div className="px-4 pt-6 pb-4 space-y-5">
       <div className="flex items-center gap-2">
@@ -197,27 +202,58 @@ export default function Challenge() {
       </div>
       <p className="text-sm text-muted-foreground -mt-3">¿Para qué estás vendiendo?</p>
 
-      {/* Goal Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {GOAL_TEMPLATES.map((t) => {
-          const isActive = activeGoal?.target_type === t.type;
-          return (
-            <motion.button
-              key={t.type}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => openDialog(t)}
-              className={`relative bg-card rounded-2xl p-4 shadow-card flex flex-col items-center gap-2 text-center transition-all border-2 ${
-                isActive ? 'border-gold' : 'border-transparent'
-              }`}
-            >
-              <span className="text-3xl">{t.emoji}</span>
-              <span className="text-xs font-semibold text-foreground leading-tight">{t.name}</span>
-              {isActive && (
-                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-gold" />
-              )}
-            </motion.button>
-          );
-        })}
+      {/* SECTION 1 — Reto de negocio */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          🏆 Reto de negocio
+        </h2>
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => openDialog(RETO_TEMPLATE)}
+          className={`relative w-full bg-gradient-navy rounded-2xl p-5 shadow-elevated flex items-center gap-4 text-left border-2 ${
+            isRetoActive ? 'border-gold' : 'border-transparent'
+          }`}
+        >
+          <span className="text-4xl">{RETO_TEMPLATE.emoji}</span>
+          <div>
+            <span className="text-base font-bold text-primary-foreground">{RETO_TEMPLATE.name}</span>
+            <p className="text-[10px] text-primary-foreground/50 mt-0.5">Programa oficial de Price Shoes</p>
+          </div>
+          {isRetoActive && (
+            <div className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-gold" />
+          )}
+        </motion.button>
+      </div>
+
+      {/* Separator */}
+      <div className="border-t border-border" />
+
+      {/* SECTION 2 — Mis sueños */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          ✨ Mis sueños
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          {DREAM_TEMPLATES.map((t) => {
+            const isActive = activeGoal?.target_type === t.type;
+            return (
+              <motion.button
+                key={t.type}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => openDialog(t)}
+                className={`relative bg-card rounded-2xl p-4 shadow-card flex flex-col items-center gap-2 text-center transition-all border-2 ${
+                  isActive ? 'border-gold' : 'border-transparent'
+                }`}
+              >
+                <span className="text-3xl">{t.emoji}</span>
+                <span className="text-xs font-semibold text-foreground leading-tight">{t.name}</span>
+                {isActive && (
+                  <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-gold" />
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Active Goal Card */}
@@ -236,7 +272,7 @@ export default function Challenge() {
               </div>
               <button
                 onClick={() => {
-                  const tmpl = GOAL_TEMPLATES.find(t => t.type === activeGoal.target_type) ?? GOAL_TEMPLATES[5];
+                  const tmpl = ALL_TEMPLATES.find(t => t.type === activeGoal.target_type) ?? DREAM_TEMPLATES[4];
                   openDialog(tmpl);
                 }}
                 className="text-primary-foreground/60 hover:text-primary-foreground"
@@ -292,7 +328,7 @@ export default function Challenge() {
         </motion.div>
       )}
 
-      {/* Dialog — simplified, no sliders */}
+      {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="rounded-2xl max-w-[92vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
