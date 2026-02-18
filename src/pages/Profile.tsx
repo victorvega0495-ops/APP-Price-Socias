@@ -119,7 +119,11 @@ export default function Profile() {
           <h2 className="text-sm font-semibold" style={{ color: '#2D1B69' }}>Mi información</h2>
           <div><Label className="text-xs">Nombre</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div><Label className="text-xs">Teléfono</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="5512345678" /></div>
-          <div><Label className="text-xs">Número de socia</Label><Input value={partnerNumber} onChange={(e) => setPartnerNumber(e.target.value)} placeholder="Ej: PS-12345" /></div>
+          <div>
+            <Label className="text-xs">Número de socia</Label>
+            <Input value={partnerNumber} onChange={(e) => setPartnerNumber(e.target.value)} placeholder="Ej: PS-12345" />
+            {!partnerNumber && <p className="text-[11px] mt-1" style={{ color: '#8a8a9a' }}>💡 Encuéntralo en tu credencial Price Shoes</p>}
+          </div>
         </motion.div>
 
         {/* Methodology */}
@@ -188,7 +192,7 @@ export default function Profile() {
       <Sheet open={reconfigOpen} onOpenChange={setReconfigOpen}>
         <SheetContent side="bottom" className="h-[95vh] p-0 rounded-t-3xl overflow-auto">
           <SheetHeader className="sr-only"><SheetTitle>Reconfigurar metodología</SheetTitle></SheetHeader>
-          <OnboardingFlow skipWelcome onComplete={() => setReconfigOpen(false)} />
+          <OnboardingFlow skipWelcome onComplete={() => setReconfigOpen(false)} initialValues={{ pctGanancia, pctAhorro, pctReposicion }} />
         </SheetContent>
       </Sheet>
     </div>

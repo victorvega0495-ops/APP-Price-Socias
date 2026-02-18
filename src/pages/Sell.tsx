@@ -682,7 +682,7 @@ export default function Sell() {
             <div className="flex justify-between text-sm"><span style={{ color: '#8a8a9a' }}>Te costó:</span><span className="font-semibold" style={{ color: '#2D1B69' }}>{formatCurrency(sumCost)}</span></div>
             <div className="flex justify-between text-sm items-center"><span style={{ color: '#8a8a9a' }}>Le cobras:</span><div className="relative w-28"><span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs" style={{ color: '#8a8a9a' }}>$</span><Input type="number" value={totalOverride ?? sumSale} onChange={e => setTotalOverride(Number(e.target.value) || 0)} className="pl-5 h-8 text-sm text-right font-semibold" /></div></div>
             <div className="flex justify-between text-sm"><span style={{ color: '#8a8a9a' }}>Tu ganancia:</span><span className="font-bold" style={{ color: '#C06DD6' }}>{formatCurrency(profit)}</span></div>
-            <div className="flex justify-between text-sm"><span style={{ color: '#8a8a9a' }}>Margen real:</span><span className="font-semibold" style={{ color: '#2D1B69' }}>{margin.toFixed(0)}%</span></div>
+            <div className="flex justify-between text-sm"><span style={{ color: '#8a8a9a' }}>Tu ganancia estimada:</span><span className="font-semibold" style={{ color: '#2D1B69' }}>{pctGanancia}%</span></div>
           </motion.div>
         )}
       </AnimatePresence>

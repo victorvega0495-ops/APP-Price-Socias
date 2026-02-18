@@ -15,18 +15,19 @@ const CARD_SHADOW = '0 2px 12px rgba(0,0,0,0.07)';
 interface OnboardingFlowProps {
   skipWelcome?: boolean;
   onComplete?: () => void;
+  initialValues?: { pctGanancia?: number; pctAhorro?: number; pctReposicion?: number };
 }
 
-export function OnboardingFlow({ skipWelcome = false, onComplete }: OnboardingFlowProps) {
+export function OnboardingFlow({ skipWelcome = false, onComplete, initialValues }: OnboardingFlowProps) {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(skipWelcome ? 1 : 0);
   const [compraTipo, setCompraTipo] = useState<string | null>(null);
-  const [pctGanancia, setPctGanancia] = useState(30);
+  const [pctGanancia, setPctGanancia] = useState(initialValues?.pctGanancia ?? 30);
   const [wantsToSave, setWantsToSave] = useState<boolean | null>(null);
-  const [pctAhorro, setPctAhorro] = useState(20);
+  const [pctAhorro, setPctAhorro] = useState(initialValues?.pctAhorro ?? 20);
   const [saving, setSaving] = useState(false);
 
   const totalSteps = skipWelcome ? 4 : 5;

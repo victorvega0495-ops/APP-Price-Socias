@@ -158,7 +158,7 @@ export default function Tips() {
               {crossSell.map(cs => (
                 <div key={cs.client.id} className="bg-white rounded-2xl p-4 space-y-2" style={{ boxShadow: CARD_SHADOW }}>
                   <p className="font-medium text-sm" style={{ color: '#2D1B69' }}>{cs.client.name}</p>
-                  <p className="text-xs" style={{ color: '#8a8a9a' }}>{cs.client.name} compró {cs.category} hace {cs.daysAgo} días.</p>
+                  <p className="text-xs" style={{ color: '#8a8a9a' }}>{cs.client.name} compró {cs.category} {cs.daysAgo === 1 ? 'hace 1 día' : `hace ${cs.daysAgo} días`}.</p>
                   <p className="text-xs" style={{ color: '#8a8a9a' }}>Podrías ofrecerle <span className="font-medium" style={{ color: '#2D1B69' }}>{cs.suggestion}</span> para complementar su look 👗</p>
                   <Button size="sm" className="text-white" style={{ background: 'hsl(142,71%,35%)' }} onClick={() => openWa(cs.client.phone, `Hola ${cs.client.name}, vi que te llevaste ${cs.category} y tengo algo que te va a encantar para complementarlo 😍 ¿Te cuento?`)}>
                     <MessageCircle className="w-4 h-4 mr-1" /> Ofrecerle
