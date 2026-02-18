@@ -14,12 +14,13 @@ import Sell from "./pages/Sell";
 import Challenge from "./pages/Challenge";
 import Tips from "./pages/Tips";
 import Profile from "./pages/Profile";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoutes() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -30,6 +31,16 @@ function ProtectedRoutes() {
   }
 
   if (!user) return <Navigate to="/auth" replace />;
+
+  // Redirect to onboarding if metodologia not set
+  if (profile && !profile.metodologia) {
+    return (
+      <Routes>
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="*" element={<Navigate to="/onboarding" replace />} />
+      </Routes>
+    );
+  }
 
   return (
     <MobileLayout>
