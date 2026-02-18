@@ -68,6 +68,47 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          paid: boolean
+          paid_date: string | null
+          payment_number: number
+          purchase_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          paid?: boolean
+          paid_date?: string | null
+          payment_number: number
+          purchase_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          paid?: boolean
+          paid_date?: string | null
+          payment_number?: number
+          purchase_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_payments_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           created_at: string
@@ -207,6 +248,38 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_items: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          purchase_id: string
+          quantity: number
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          purchase_id: string
+          quantity?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          purchase_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
             referencedColumns: ["id"]
           },
         ]
