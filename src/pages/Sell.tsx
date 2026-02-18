@@ -606,6 +606,19 @@ export default function Sell() {
                       >↺</button>
                     )}
                   </div>
+                  {(() => {
+                    const costNum = Number(itemCostInput) || 0;
+                    const saleNum = Number(itemSaleInput) || 0;
+                    if (costNum <= 0 || saleNum <= 0) return null;
+                    const repDec = (100 - pctGanancia - 5) / 100;
+                    const recommended = Math.round(costNum / repDec);
+                    if (saleNum >= recommended) return null;
+                    return (
+                      <p className="text-[10px] mt-1" style={{ color: '#C06DD6' }}>
+                        ⚠️ Con este precio no cubres tu metodología 3C. Te recomendamos cobrar al menos {formatCurrency(recommended)} para mantener tu ganancia del {pctGanancia}%.
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
               {Number(itemCostInput) > 0 && !itemSaleManual && (
