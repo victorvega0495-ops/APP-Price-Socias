@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -34,7 +34,6 @@ export default function Dashboard() {
     totalSales: 0, targetAmount: 10000, deadline: '', overdueCredits: 0, inactiveClients: 0,
   });
 
-  // Monthly goal state
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -43,35 +42,15 @@ export default function Dashboard() {
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [goalInput, setGoalInput] = useState(0);
 
-  // Calibration state
-  const [precioSocia, setPrecioSocia] = useState(() => {
-    const saved = localStorage.getItem('socia_precio');
-    return saved ? Number(saved) : 350;
-  });
-  const [pctGanancia, setPctGanancia] = useState(() => {
-    const saved = localStorage.getItem('socia_pct');
-    return saved ? Number(saved) : 54;
-  });
-  const [showCalibrar, setShowCalibrar] = useState(false);
-
-  // Smart reto state
   const [totalRealMes, setTotalRealMes] = useState(0);
+  const [margenPromedio, setMargenPromedio] = useState(0.30);
   const [montoPendienteCredito, setMontoPendienteCredito] = useState(0);
   const [lastPurchaseDaysAgo, setLastPurchaseDaysAgo] = useState(0);
-
-  const handlePrecioChange = (val: number) => {
-    setPrecioSocia(val);
-    localStorage.setItem('socia_precio', String(val));
-  };
-  const handlePctChange = (val: number) => {
-    setPctGanancia(val);
-    localStorage.setItem('socia_pct', String(val));
-  };
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      // Get challenge goal
+      // Challenge goal
       const { data: goal } = await supabase
         .from('challenge_goals')
         .select('target_amount, deadline')
@@ -80,14 +59,14 @@ export default function Dashboard() {
         .limit(1)
         .maybeSingle();
 
-      // Get total sales (all time for reto)
+      // All-time sales for reto
       const { data: finances } = await supabase
         .from('weekly_finances')
         .select('total_sales')
         .eq('user_id', user.id);
       const totalSales = finances?.reduce((sum, f) => sum + Number(f.total_sales), 0) || 0;
 
-      // Monthly sales
+      // Monthly sales from weekly_finances
       const { data: monthFinances } = await supabase
         .from('weekly_finances')
         .select('total_sales')
@@ -110,15 +89,22 @@ export default function Dashboard() {
         setGoalInput(Number(goalData.target_income));
       }
 
-      // Purchases this month (for smart reto)
+      // Purchases this month — with cost_price for real margin
       const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
       const { data: purchasesData } = await supabase
         .from('purchases')
-        .select('amount, is_credit, credit_paid, purchase_date')
+        .select('amount, is_credit, credit_paid, purchase_date, cost_price')
         .eq('user_id', user.id)
         .gte('purchase_date', monthStart);
       const realMes = purchasesData?.reduce((s, p) => s + Number(p.amount), 0) || 0;
       setTotalRealMes(realMes);
+
+      // Calculate real average margin
+      const ventasConCosto = purchasesData?.filter(p => p.cost_price && Number(p.cost_price) > 0) || [];
+      const avgMargen = ventasConCosto.length > 0
+        ? ventasConCosto.reduce((s, p) => s + (Number(p.amount) - Number(p.cost_price)) / Number(p.amount), 0) / ventasConCosto.length
+        : 0.30;
+      setMargenPromedio(avgMargen);
 
       // Days since last purchase
       if (purchasesData && purchasesData.length > 0) {
@@ -185,32 +171,23 @@ export default function Dashboard() {
   const days = data.deadline ? daysRemaining(data.deadline) : 0;
   const firstName = profile?.name?.split(' ')[0] || 'Socia';
 
-  const goalProgress = monthlyTarget > 0 ? Math.min(100, (monthTotalSales / monthlyTarget) * 100) : 0;
+  const metaVentas = monthlyTarget > 0 ? monthlyTarget / margenPromedio : 0;
+  const goalProgress = metaVentas > 0 ? Math.min(100, (totalRealMes / metaVentas) * 100) : 0;
+  const gananciaAcumulada = totalRealMes * margenPromedio;
+
   const daysLeftInMonth = (() => {
     const lastDay = new Date(year, month, 0).getDate();
     const today = now.getDate();
     return Math.max(1, lastDay - today);
   })();
-  const dailyNeeded = monthlyTarget > 0 ? Math.max(0, (monthlyTarget - monthTotalSales) / daysLeftInMonth) : 0;
-
-  // Smart reto calculations
-  const precioCliente = precioSocia * (1 + pctGanancia / 100);
-  const gananciaPorVenta = precioCliente * 0.30;
-  const paresVendidos = totalRealMes > 0 ? Math.round(totalRealMes / precioCliente) : 0;
-  const diasTranscurridos = Math.max(1, now.getDate());
-  const ritmoActual = paresVendidos / diasTranscurridos;
-  const metaVenta = data.targetAmount / 0.30;
-  const retoProgress = progressPercentage(totalRealMes, metaVenta);
-  const paresNecesariosDia = gananciaPorVenta > 0
-    ? Math.ceil((metaVenta - totalRealMes) / gananciaPorVenta / Math.max(1, daysLeftInMonth))
-    : 0;
+  const dailyNeeded = metaVentas > 0 ? Math.max(0, (metaVentas - totalRealMes) / daysLeftInMonth) : 0;
 
   // Smart notes (max 2)
   const smartNotes: { text: string; type: 'warn' | 'success' }[] = [];
   if (data.overdueCredits > 0 && montoPendienteCredito > 0) {
-    const extraPct = metaVenta > 0 ? Math.round((montoPendienteCredito / metaVenta) * 100) : 0;
+    const extraPct = metaVentas > 0 ? Math.round((montoPendienteCredito / metaVentas) * 100) : 0;
     smartNotes.push({
-      text: `💰 Tienes ${formatCurrency(montoPendienteCredito)} sin cobrar. ¡Recupéralos y ya llevas ${extraPct}% más del reto!`,
+      text: `💰 Tienes ${formatCurrency(montoPendienteCredito)} sin cobrar. ¡Recupéralos y ya llevas ${extraPct}% más!`,
       type: 'warn',
     });
   }
@@ -220,9 +197,9 @@ export default function Dashboard() {
       type: 'warn',
     });
   }
-  if (smartNotes.length === 0 && ritmoActual >= paresNecesariosDia * 1.1 && paresVendidos > 0) {
+  if (smartNotes.length === 0 && goalProgress >= 80 && totalRealMes > 0) {
     smartNotes.push({
-      text: '🚀 ¡Vas muy bien! A este ritmo llegas antes de tu fecha límite.',
+      text: '🚀 ¡Vas muy bien! A este ritmo llegas antes de fin de mes.',
       type: 'success',
     });
   }
@@ -248,62 +225,13 @@ export default function Dashboard() {
       >
         {/* UPPER SECTION — Monthly Business Dashboard */}
         <div className="bg-gradient-navy p-5">
-          <div className="flex items-start justify-between mb-1">
-            <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider">
-              MI NEGOCIO — {monthNames[month]} {year}
-            </p>
-            <button
-              onClick={() => setShowCalibrar(!showCalibrar)}
-              className="text-primary-foreground/50 hover:text-primary-foreground/80 text-[10px] flex items-center gap-0.5"
-            >
-              <Settings className="w-3 h-3" /> Calibrar
-            </button>
-          </div>
-
-          {/* Calibration panel */}
-          <AnimatePresence>
-            {showCalibrar && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="bg-primary-foreground/10 rounded-xl p-3 mb-3 space-y-2">
-                  <div>
-                    <label className="text-[10px] text-primary-foreground/70">Precio promedio que pagas a Price ($)</label>
-                    <Input
-                      type="number"
-                      value={precioSocia || ''}
-                      onChange={(e) => handlePrecioChange(Number(e.target.value) || 0)}
-                      className="h-7 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-primary-foreground/70">% que le subes a tus clientes</label>
-                    <Input
-                      type="number"
-                      value={pctGanancia || ''}
-                      onChange={(e) => handlePctChange(Number(e.target.value) || 0)}
-                      className="h-7 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground mt-0.5"
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => setShowCalibrar(false)}
-                    className="w-full h-7 text-xs bg-gold text-navy font-semibold"
-                  >
-                    Listo
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider mb-1">
+            MI NEGOCIO — {monthNames[month]} {year}
+          </p>
 
           {/* Total vendido este mes */}
           <p className="text-3xl font-bold text-primary-foreground mt-1">
-            {formatCurrency(monthTotalSales)}
+            {formatCurrency(totalRealMes)}
           </p>
           <p className="text-xs text-primary-foreground/50 mt-0.5">vendido este mes</p>
 
@@ -312,22 +240,22 @@ export default function Dashboard() {
             <div className="mt-3">
               <div className="flex justify-between text-[10px] text-primary-foreground/60 mb-1">
                 <span>{Math.round(goalProgress)}%</span>
-                <span>Meta: {formatCurrency(monthlyTarget / 0.30)} en ventas</span>
+                <span>Meta: {formatCurrency(metaVentas)} en ventas</span>
               </div>
-              <Progress value={goalProgress} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold" />
+              <Progress value={goalProgress} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold shadow-gold" />
             </div>
           )}
 
-          {/* Two columns: Ganancia acumulada / Meta de ganancia */}
+          {/* Two stat-boxes */}
           <div className="grid grid-cols-2 gap-3 mt-4">
-            <div>
+            <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <p className="text-[10px] text-primary-foreground/50 uppercase tracking-wider">Ganancia acumulada</p>
-              <p className="text-lg font-bold text-gold">{formatCurrency(monthTotalSales * 0.30)}</p>
+              <p className="text-lg font-bold text-gold">{formatCurrency(gananciaAcumulada)}</p>
             </div>
-            <div className="text-right">
+            <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <p className="text-[10px] text-primary-foreground/50 uppercase tracking-wider">Meta de ganancia</p>
               {monthlyTarget > 0 ? (
-                <div className="flex items-center justify-end gap-1">
+                <div className="flex items-center gap-1">
                   <p className="text-lg font-bold text-primary-foreground">{formatCurrency(monthlyTarget)}</p>
                   <button
                     onClick={() => { setGoalInput(monthlyTarget); setGoalDialogOpen(true); }}
@@ -348,30 +276,10 @@ export default function Dashboard() {
           </div>
 
           {/* Daily needed */}
-          {monthlyTarget > 0 && monthTotalSales < monthlyTarget / 0.30 && (
+          {monthlyTarget > 0 && totalRealMes < metaVentas && (
             <p className="text-xs text-primary-foreground/70 mt-3">
               Necesitas vender <span className="font-semibold text-gold">{formatCurrency(dailyNeeded)}</span>/día para llegar
             </p>
-          )}
-
-          {/* Pares vendidos & ritmo */}
-          <p className="text-xs text-gold mt-2">~{paresVendidos} pares vendidos</p>
-          {paresNecesariosDia > 0 && totalRealMes < metaVenta && (
-            <p className="text-xs text-primary-foreground/70 mt-1">
-              Necesitas <span className="font-semibold text-gold">{paresNecesariosDia} pares/día</span> para llegar
-            </p>
-          )}
-          {paresVendidos > 0 && (
-            <div className={`mt-2 rounded-lg px-3 py-1.5 text-xs font-medium ${
-              ritmoActual >= paresNecesariosDia
-                ? 'bg-green-500/20 text-green-200'
-                : 'bg-yellow-500/20 text-yellow-200'
-            }`}>
-              {ritmoActual >= paresNecesariosDia
-                ? `✅ Vas a buen ritmo (${ritmoActual.toFixed(1)}/día)`
-                : `⚡ Ritmo actual: ${ritmoActual.toFixed(1)}/día`
-              }
-            </div>
           )}
         </div>
 
@@ -396,6 +304,25 @@ export default function Dashboard() {
           </div>
         )}
       </motion.div>
+
+      {/* Smart Notes */}
+      {smartNotes.length > 0 && (
+        <div className="space-y-2">
+          {smartNotes.map((note, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.05 * i }}
+              className={`rounded-xl p-3 text-sm ${
+                note.type === 'warn' ? 'bg-gold/10 text-foreground' : 'bg-green-500/10 text-foreground'
+              }`}
+            >
+              {note.text}
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Alerts */}
       {(data.overdueCredits > 0 || data.inactiveClients > 0) && (
@@ -458,7 +385,7 @@ export default function Dashboard() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>¿Cuánto quieres vender este mes?</Label>
+              <Label>¿Cuánto quieres ganar este mes?</Label>
               <div className="relative mt-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                 <Input
