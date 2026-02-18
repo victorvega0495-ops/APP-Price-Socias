@@ -206,6 +206,7 @@ export type Database = {
         Row: {
           amount: number
           client_id: string | null
+          cost_price: number | null
           created_at: string
           credit_due_date: string | null
           credit_paid: boolean | null
@@ -219,6 +220,7 @@ export type Database = {
         Insert: {
           amount: number
           client_id?: string | null
+          cost_price?: number | null
           created_at?: string
           credit_due_date?: string | null
           credit_paid?: boolean | null
@@ -232,6 +234,7 @@ export type Database = {
         Update: {
           amount?: number
           client_id?: string | null
+          cost_price?: number | null
           created_at?: string
           credit_due_date?: string | null
           credit_paid?: boolean | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.purchases ADD COLUMN cost_price numeric DEFAULT NULL;
