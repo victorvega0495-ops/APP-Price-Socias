@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/format';
-import { AlertTriangle, LogOut, HelpCircle, Camera } from 'lucide-react';
+import { AlertTriangle, LogOut, HelpCircle, Camera, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { OnboardingFlow } from '@/pages/Onboarding';
 
 const HEADER_GRADIENT = 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)';
 const CARD_SHADOW = '0 2px 12px rgba(0,0,0,0.07)';
@@ -31,6 +33,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [reconfigOpen, setReconfigOpen] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -129,6 +132,9 @@ export default function Profile() {
             <label className="flex items-center gap-3 cursor-pointer"><input type="radio" name="metodologia" checked={metodologia === 'recomendada'} onChange={() => setMetodologia('recomendada')} className="w-4 h-4" style={{ accentColor: '#6B2FA0' }} /><span className="text-sm">✅ Recomendada por Price Shoes</span></label>
             <label className="flex items-center gap-3 cursor-pointer"><input type="radio" name="metodologia" checked={metodologia === 'personalizada'} onChange={() => setMetodologia('personalizada')} className="w-4 h-4" style={{ accentColor: '#6B2FA0' }} /><span className="text-sm">⚙️ Personalizada</span></label>
           </div>
+          <button onClick={() => setReconfigOpen(true)} className="flex items-center gap-2 text-sm font-medium mt-2 px-4 py-2 rounded-xl w-full justify-center" style={{ background: '#F0E6F6', color: '#6B2FA0' }}>
+            <Settings className="w-4 h-4" /> Reconfigurar mi metodología
+          </button>
 
           {metodologia === 'personalizada' && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-5 pt-2">
@@ -171,6 +177,14 @@ export default function Profile() {
           <LogOut className="w-4 h-4" /> Cerrar sesión
         </button>
       </div>
+
+      {/* Reconfig Sheet */}
+      <Sheet open={reconfigOpen} onOpenChange={setReconfigOpen}>
+        <SheetContent side="bottom" className="h-[95vh] p-0 rounded-t-3xl overflow-auto">
+          <SheetHeader className="sr-only"><SheetTitle>Reconfigurar metodología</SheetTitle></SheetHeader>
+          <OnboardingFlow skipWelcome onComplete={() => setReconfigOpen(false)} />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
