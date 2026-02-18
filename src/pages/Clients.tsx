@@ -9,11 +9,25 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Phone, Plus, Filter, MessageCircle, CreditCard, AlertTriangle, Check, Clock
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  Phone, Plus, MessageCircle, CreditCard, AlertTriangle, Check, Clock
 } from 'lucide-react';
+import { format, parseISO, differenceInDays } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  try {
+    return format(parseISO(dateStr), 'd MMM yyyy', { locale: es });
+  } catch {
+    return dateStr;
+  }
+}
 
 interface Client {
   id: string;
@@ -21,6 +35,7 @@ interface Client {
   phone: string | null;
   last_purchase_date: string | null;
   pending_balance?: number;
+  credit_due_date_earliest?: string | null;
 }
 
 interface Purchase {
@@ -39,7 +54,7 @@ export default function Clients() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [clients, setClients] = useState<Client[]>([]);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'inactive'>('all');
+  const [filter, setFilter] = useState<'all' | 'cobranza' | 'reactivar'>('all');
   const [addOpen, setAddOpen] = useState(searchParams.get('add') === 'true');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -60,20 +75,21 @@ export default function Clients() {
       .order('name');
 
     if (data) {
-      // Get pending balances
       const clientsWithBalance = await Promise.all(
         data.map(async (c) => {
           const { data: creditData } = await supabase
             .from('purchases')
-            .select('amount, credit_paid_amount')
+            .select('amount, credit_paid_amount, credit_due_date')
             .eq('client_id', c.id)
             .eq('is_credit', true)
             .eq('credit_paid', false);
-          const pending = creditData?.reduce((s, p) => s + (Number(p.amount) - Number(p.credit_paid_amount)), 0) || 0;
-          return { ...c, pending_balance: pending };
+          const pending = creditData?.reduce((s, p) => s + (Number(p.amount) - Number(p.credit_paid_amount || 0)), 0) || 0;
+          const earliestDue = creditData?.filter(p => p.credit_due_date)
+            .sort((a, b) => (a.credit_due_date || '').localeCompare(b.credit_due_date || ''))[0]?.credit_due_date || null;
+          return { ...c, pending_balance: pending, credit_due_date_earliest: earliestDue } as Client;
         })
       );
-      setClients(clientsWithBalance as any);
+      setClients(clientsWithBalance);
     }
   };
 
@@ -121,19 +137,53 @@ export default function Clients() {
     toast({ title: 'Pago registrado ✅' });
   };
 
+  const today = new Date();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
   const filteredClients = clients.filter(c => {
-    if (filter === 'pending') return (c.pending_balance || 0) > 0;
-    if (filter === 'inactive') {
+    if (filter === 'cobranza') return (c.pending_balance || 0) > 0;
+    if (filter === 'reactivar') {
       if (!c.last_purchase_date) return true;
-      const thirty = new Date();
-      thirty.setDate(thirty.getDate() - 30);
-      return new Date(c.last_purchase_date) < thirty;
+      return new Date(c.last_purchase_date) < thirtyDaysAgo;
     }
     return true;
   });
 
   const totalPending = clients.reduce((s, c) => s + (c.pending_balance || 0), 0);
 
+  const buildWhatsAppUrl = (phone: string, message: string) =>
+    `https://wa.me/52${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+
+  const WhatsAppButton = ({ client, message }: { client: Client; message: string }) => {
+    if (!client.phone) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button disabled className="w-9 h-9 rounded-full bg-muted flex items-center justify-center opacity-50 cursor-not-allowed">
+                <MessageCircle className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Sin teléfono registrado</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    return (
+      <a
+        href={buildWhatsAppUrl(client.phone, message)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-9 h-9 rounded-full bg-gold-dark flex items-center justify-center flex-shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <MessageCircle className="w-4 h-4 text-primary-foreground" />
+      </a>
+    );
+  };
+
+  // --- DETAIL VIEW ---
   if (selectedClient) {
     return (
       <div className="px-4 pt-6 pb-4">
@@ -177,13 +227,13 @@ export default function Clients() {
             <p className="text-sm text-muted-foreground text-center py-8">Aún no hay compras registradas</p>
           )}
           {purchases.map(p => {
-            const isOverdue = p.is_credit && !p.credit_paid && p.credit_due_date && new Date(p.credit_due_date) < new Date();
+            const isOverdue = p.is_credit && !p.credit_paid && p.credit_due_date && new Date(p.credit_due_date) < today;
             return (
               <div key={p.id} className="bg-card rounded-xl p-3 shadow-card">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm font-medium">{p.description || 'Venta'}</p>
-                    <p className="text-xs text-muted-foreground">{p.purchase_date}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(p.purchase_date)}</p>
                   </div>
                   <p className="font-semibold">{formatCurrency(Number(p.amount))}</p>
                 </div>
@@ -191,7 +241,7 @@ export default function Clients() {
                   <div className="mt-2 flex items-center justify-between">
                     <span className={`text-xs font-medium flex items-center gap-1 ${p.credit_paid ? 'text-green-600' : isOverdue ? 'text-destructive' : 'text-gold-dark'}`}>
                       {p.credit_paid ? <Check className="w-3 h-3" /> : isOverdue ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                      {p.credit_paid ? 'Pagado' : isOverdue ? 'Vencido' : `Vence: ${p.credit_due_date}`}
+                      {p.credit_paid ? 'Pagado' : isOverdue ? `Vencido (${formatDate(p.credit_due_date)})` : `Vence: ${formatDate(p.credit_due_date)}`}
                     </span>
                     {!p.credit_paid && (
                       <Button size="sm" variant="outline" onClick={() => markAsPaid(p.id)} className="h-7 text-xs">
@@ -205,7 +255,6 @@ export default function Clients() {
           })}
         </div>
 
-        {/* Register Sale Dialog */}
         <Dialog open={saleOpen} onOpenChange={setSaleOpen}>
           <DialogContent className="max-w-sm rounded-2xl">
             <DialogHeader>
@@ -240,6 +289,7 @@ export default function Clients() {
     );
   }
 
+  // --- LIST VIEW ---
   return (
     <div className="px-4 pt-6 pb-4">
       <div className="flex items-center justify-between mb-1">
@@ -258,13 +308,13 @@ export default function Clients() {
 
       {/* Filters */}
       <div className="flex gap-2 mb-4">
-        {(['all', 'pending', 'inactive'] as const).map(f => (
+        {(['all', 'cobranza', 'reactivar'] as const).map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${filter === f ? 'bg-navy text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
           >
-            {f === 'all' ? 'Todas' : f === 'pending' ? 'Con saldo' : 'Sin compra +30d'}
+            {f === 'all' ? 'Todas' : f === 'cobranza' ? 'Cobranza' : 'Reactivar'}
           </button>
         ))}
       </div>
@@ -276,29 +326,70 @@ export default function Clients() {
             {filter === 'all' ? 'Agrega tu primera clienta 💪' : 'No hay clientas en este filtro'}
           </p>
         )}
-        {filteredClients.map((c, i) => (
-          <motion.button
-            key={c.id}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.03 }}
-            onClick={() => selectClient(c)}
-            className="w-full bg-card rounded-xl p-3 shadow-card flex items-center justify-between text-left"
-          >
-            <div>
-              <p className="text-sm font-medium text-foreground">{c.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {c.last_purchase_date ? `Última compra: ${c.last_purchase_date}` : 'Sin compras'}
-              </p>
-            </div>
-            <div className="text-right">
-              {(c.pending_balance || 0) > 0 && (
-                <p className="text-sm font-semibold text-destructive">{formatCurrency(c.pending_balance || 0)}</p>
-              )}
-              {c.phone && <Phone className="w-3.5 h-3.5 text-muted-foreground inline" />}
-            </div>
-          </motion.button>
-        ))}
+        {filteredClients.map((c, i) => {
+          const daysAgo = c.last_purchase_date
+            ? differenceInDays(today, parseISO(c.last_purchase_date))
+            : null;
+          const isOverdue = c.credit_due_date_earliest && new Date(c.credit_due_date_earliest) < today;
+          const overdueDays = c.credit_due_date_earliest
+            ? differenceInDays(today, parseISO(c.credit_due_date_earliest))
+            : 0;
+
+          // WhatsApp messages per filter
+          let waMessage = '';
+          if (filter === 'cobranza') {
+            waMessage = `Hola ${c.name}, te recuerdo amablemente que tienes un saldo pendiente de ${formatCurrency(c.pending_balance || 0)} 😊 ¿Cuándo podemos coordinar tu pago? ¡Gracias!`;
+          } else if (filter === 'reactivar') {
+            waMessage = `Hola ${c.name}, ¡ya te extrañamos! Tenemos productos nuevos que te van a encantar 👟 ¿Cuándo te podemos atender? ¡Saludos!`;
+          }
+
+          return (
+            <motion.div
+              key={c.id}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+              className="w-full bg-card rounded-xl p-3 shadow-card flex items-center justify-between"
+            >
+              <button
+                onClick={() => selectClient(c)}
+                className="flex-1 text-left"
+              >
+                <p className="text-sm font-medium text-foreground">{c.name}</p>
+                {filter === 'cobranza' ? (
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold text-destructive">
+                      Pendiente: {formatCurrency(c.pending_balance || 0)}
+                    </p>
+                    {isOverdue && overdueDays > 0 && (
+                      <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-medium">
+                        {overdueDays}d vencido
+                      </span>
+                    )}
+                  </div>
+                ) : filter === 'reactivar' ? (
+                  <p className="text-xs text-muted-foreground">
+                    {daysAgo !== null ? `Última compra: ${daysAgo} días` : 'Sin compras registradas'}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {c.last_purchase_date ? `Última compra: ${formatDate(c.last_purchase_date)}` : 'Sin compras'}
+                  </p>
+                )}
+              </button>
+
+              <div className="flex items-center gap-2 ml-2">
+                {filter === 'all' && (c.pending_balance || 0) > 0 && (
+                  <p className="text-sm font-semibold text-destructive">{formatCurrency(c.pending_balance || 0)}</p>
+                )}
+                {(filter === 'cobranza' || filter === 'reactivar') && (
+                  <WhatsAppButton client={c} message={waMessage} />
+                )}
+                {filter === 'all' && c.phone && <Phone className="w-3.5 h-3.5 text-muted-foreground" />}
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Add Client Dialog */}
