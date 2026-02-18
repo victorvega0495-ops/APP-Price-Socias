@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import ProgressRing from '@/components/ProgressRing';
-import { Trophy, TrendingUp, TrendingDown, Target, Calendar } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Target, Calendar, Sparkles } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
 
 export default function Challenge() {
@@ -21,47 +21,79 @@ export default function Challenge() {
   const [weeklyData, setWeeklyData] = useState<{ name: string; ventas: number }[]>([]);
   const [hasGoal, setHasGoal] = useState(false);
   const [goalId, setGoalId] = useState<string | null>(null);
+  const [simLoading, setSimLoading] = useState(false);
 
-  useEffect(() => {
+  const loadData = async () => {
     if (!user) return;
-    const load = async () => {
-      // Load goal
-      const { data: goal } = await supabase
-        .from('challenge_goals')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    // Load goal
+    const { data: goal } = await supabase
+      .from('challenge_goals')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (goal) {
-        setTargetAmount(Number(goal.target_amount));
-        setDeadline(goal.deadline);
-        setHasGoal(true);
-        setGoalId(goal.id);
-      }
+    if (goal) {
+      setTargetAmount(Number(goal.target_amount));
+      setDeadline(goal.deadline);
+      setHasGoal(true);
+      setGoalId(goal.id);
+    }
 
-      // Load all weekly finances for chart
-      const { data: finances } = await supabase
-        .from('weekly_finances')
-        .select('year, month, week, total_sales')
-        .eq('user_id', user.id)
-        .order('year', { ascending: true })
-        .order('month', { ascending: true })
-        .order('week', { ascending: true });
+    // Load all weekly finances for chart
+    const { data: finances } = await supabase
+      .from('weekly_finances')
+      .select('year, month, week, total_sales')
+      .eq('user_id', user.id)
+      .order('year', { ascending: true })
+      .order('month', { ascending: true })
+      .order('week', { ascending: true });
 
-      if (finances) {
-        const total = finances.reduce((s, f) => s + Number(f.total_sales), 0);
-        setTotalSales(total);
-        const chartData = finances.slice(-8).map(f => ({
-          name: `S${f.week} M${f.month}`,
-          ventas: Number(f.total_sales),
-        }));
-        setWeeklyData(chartData);
-      }
-    };
-    load();
-  }, [user]);
+    if (finances) {
+      const total = finances.reduce((s, f) => s + Number(f.total_sales), 0);
+      setTotalSales(total);
+      const chartData = finances.slice(-8).map(f => ({
+        name: `S${f.week} M${f.month}`,
+        ventas: Number(f.total_sales),
+      }));
+      setWeeklyData(chartData);
+    }
+  };
+
+  useEffect(() => { loadData(); }, [user]);
+
+  const runSimulation = async () => {
+    if (!user) return;
+    setSimLoading(true);
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const simWeeks = [
+      { week: 1, total_sales: 8778, product_cost: 5700 },
+      { week: 2, total_sales: 14630, product_cost: 9500 },
+      { week: 3, total_sales: 17556, product_cost: 11400 },
+      { week: 4, total_sales: 17556, product_cost: 11400 },
+    ];
+    for (const sw of simWeeks) {
+      await supabase.from('weekly_finances').upsert(
+        { user_id: user.id, year, month, week: sw.week, total_sales: sw.total_sales, product_cost: sw.product_cost },
+        { onConflict: 'user_id,year,month,week' }
+      );
+    }
+    // Upsert challenge goal
+    const deadlineDate = new Date();
+    deadlineDate.setDate(deadlineDate.getDate() + 30);
+    const deadlineStr = deadlineDate.toISOString().split('T')[0];
+    if (goalId) {
+      await supabase.from('challenge_goals').update({ target_amount: 10000, deadline: deadlineStr }).eq('id', goalId);
+    } else {
+      await supabase.from('challenge_goals').insert({ user_id: user.id, target_amount: 10000, deadline: deadlineStr });
+    }
+    await loadData();
+    setSimLoading(false);
+    toast({ title: '🚀 Así se ve un Reto completo. ¡Tú puedes lograrlo!' });
+  };
 
   const saveGoal = async () => {
     if (!user || !deadline) return;
@@ -133,6 +165,16 @@ export default function Challenge() {
               </div>
             </div>
           </motion.div>
+
+          {/* Simulation Button */}
+          <button
+            onClick={runSimulation}
+            disabled={simLoading}
+            className="w-full border-2 border-dashed border-gold/40 rounded-xl p-3 flex items-center justify-center gap-2 text-sm font-medium text-gold-dark hover:bg-gold/5 transition-colors disabled:opacity-50"
+          >
+            <Sparkles className="w-4 h-4" />
+            {simLoading ? 'Cargando simulación...' : '🚀 Ver simulación del Reto'}
+          </button>
 
           {/* Projection */}
           <motion.div
