@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, DollarSign, Users, ShoppingBag, Target, Plus } from 'lucide-react';
+import { Home, DollarSign, Users, ShoppingBag, Target, Plus, UserCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -23,6 +23,12 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      {/* Top bar with profile icon */}
+      <div className="max-w-lg mx-auto flex justify-end px-4 pt-3">
+        <NavLink to="/perfil" className="text-muted-foreground hover:text-foreground transition-colors">
+          <UserCircle className="w-6 h-6" />
+        </NavLink>
+      </div>
       <main className="max-w-lg mx-auto">{children}</main>
 
       {/* FAB */}

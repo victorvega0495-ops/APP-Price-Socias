@@ -7,13 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
-import { Target, Calendar, Pencil, Lock, AlertTriangle } from 'lucide-react';
+import { Target, Calendar, Pencil, Lock } from 'lucide-react';
 
 const GOAL_TEMPLATES = [
   { type: 'reto', emoji: '🏆', name: 'Reto 0 a 10,000', fixed: true, fixedAmount: 10000, fixedMonths: 1 },
@@ -48,7 +46,7 @@ function getEmojiForType(type: string) {
 }
 
 export default function Challenge() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
 
   const [activeGoal, setActiveGoal] = useState<ActiveGoal | null>(null);
@@ -61,10 +59,11 @@ export default function Challenge() {
   const [formName, setFormName] = useState('');
   const [formAmount, setFormAmount] = useState(0);
   const [formMonths, setFormMonths] = useState(3);
-  const [pctReposicion, setPctReposicion] = useState(65);
-  const [pctGanancia, setPctGanancia] = useState(30);
-  const [pctAhorro, setPctAhorro] = useState(20);
   const [saving, setSaving] = useState(false);
+
+  // Profile-based percentages
+  const pctGanancia = profile?.pct_ganancia ?? 30;
+  const pctAhorro = profile?.pct_ahorro ?? 20;
 
   const loadData = async () => {
     if (!user) return;
@@ -121,38 +120,21 @@ export default function Challenge() {
 
   useEffect(() => { loadData(); }, [user]);
 
-  // --- Calculations ---
+  // Dialog calculations using profile percentages
   const isReto = selectedTemplate?.type === 'reto';
-
-  // Reto: direct calc
-  // Others: full 3C + 50-30-20
   const calc = (() => {
     if (!formAmount || formAmount <= 0 || !formMonths) {
-      return { ahorroMensual: 0, ahorroDiario: 0, gananciaMensual: 0, ventaMensual: 0, ventaDiaria: 0 };
+      return { ahorroMensual: 0, gananciaMensual: 0, ventaMensual: 0, ventaDiaria: 0 };
     }
     if (isReto) {
-      // Reto: ganancia objetivo = target, venta = ganancia / (pctGanancia/100)
       const gananciaMensual = formAmount;
       const ventaMensual = gananciaMensual / (pctGanancia / 100);
-      return {
-        ahorroMensual: 0,
-        ahorroDiario: 0,
-        gananciaMensual,
-        ventaMensual,
-        ventaDiaria: ventaMensual / 30,
-      };
+      return { ahorroMensual: 0, gananciaMensual, ventaMensual, ventaDiaria: ventaMensual / 30 };
     }
-    // Others: full method
     const ahorroMensual = formAmount / formMonths;
     const gananciaMensual = ahorroMensual / (pctAhorro / 100);
     const ventaMensual = gananciaMensual / (pctGanancia / 100);
-    return {
-      ahorroMensual,
-      ahorroDiario: ahorroMensual / 30,
-      gananciaMensual,
-      ventaMensual,
-      ventaDiaria: ventaMensual / 30,
-    };
+    return { ahorroMensual, gananciaMensual, ventaMensual, ventaDiaria: ventaMensual / 30 };
   })();
 
   const openDialog = (template: GoalTemplate) => {
@@ -165,13 +147,6 @@ export default function Challenge() {
       setFormAmount(0);
       setFormMonths(3);
     }
-    // Load existing slider values if goal exists
-    if (activeGoal) {
-      // We'll use defaults for now; could load from DB
-    }
-    setPctReposicion(65);
-    setPctGanancia(30);
-    setPctAhorro(20);
     setDialogOpen(true);
   };
 
@@ -194,9 +169,6 @@ export default function Challenge() {
       target_name: formName || selectedTemplate.name,
       target_type: selectedTemplate.type,
       monthly_sales_needed: Math.round(calc.ventaMensual),
-      pct_reposicion: pctReposicion,
-      pct_ganancia: pctGanancia,
-      pct_ahorro: pctAhorro,
     };
 
     if (activeGoal) {
@@ -219,7 +191,6 @@ export default function Challenge() {
 
   return (
     <div className="px-4 pt-6 pb-4 space-y-5">
-      {/* Header */}
       <div className="flex items-center gap-2">
         <Target className="w-6 h-6 text-gold" />
         <h1 className="text-xl font-bold">Mis Metas</h1>
@@ -321,7 +292,7 @@ export default function Challenge() {
         </motion.div>
       )}
 
-      {/* ===== CONFIG DIALOG ===== */}
+      {/* Dialog — simplified, no sliders */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="rounded-2xl max-w-[92vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -329,11 +300,10 @@ export default function Challenge() {
               <span className="text-2xl">{selectedTemplate?.emoji}</span>
               {selectedTemplate?.name}
             </DialogTitle>
-            <DialogDescription>Configura tu meta y ajusta tus porcentajes</DialogDescription>
+            <DialogDescription>Configura tu meta</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 pt-2">
-            {/* Name */}
+          <div className="space-y-4 pt-2">
             <div>
               <Label className="text-xs">Nombre de la meta</Label>
               <Input
@@ -343,7 +313,6 @@ export default function Challenge() {
               />
             </div>
 
-            {/* Amount + Months */}
             <div className="grid grid-cols-2 gap-3">
               <div className="relative">
                 <Label className="text-xs">Costo del sueño ($)</Label>
@@ -373,94 +342,7 @@ export default function Challenge() {
               </div>
             </div>
 
-            {/* Slider 1: Reposición */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Producto / CrediPrice</Label>
-                <div className="flex items-center gap-1">
-                  {pctReposicion < 65 && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Lock className="w-3.5 h-3.5 text-gold" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-[200px] text-xs">
-                        Bajar de 65% puede comprometer tu inventario
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                  <span className="text-xs font-bold text-navy">{pctReposicion}%</span>
-                </div>
-              </div>
-              <Slider
-                value={[pctReposicion]}
-                onValueChange={([v]) => setPctReposicion(v)}
-                min={50}
-                max={80}
-                step={1}
-                className="[&_[role=slider]]:bg-navy"
-              />
-            </div>
-
-            {/* Slider 2: Ahorro (hidden for Reto) */}
-            {!isReto && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">% de ganancia que vas a ahorrar</Label>
-                  <span className="text-xs font-bold text-navy">{pctAhorro}%</span>
-                </div>
-                <Slider
-                  value={[pctAhorro]}
-                  onValueChange={([v]) => setPctAhorro(v)}
-                  min={5}
-                  max={50}
-                  step={1}
-                  className="[&_[role=slider]]:bg-navy"
-                />
-              </div>
-            )}
-
-            {/* Slider 3: Ganancia */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Label className="text-xs cursor-help underline decoration-dotted">% que le ganas a tus productos</Label>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[200px] text-xs">
-                    El método 3C sugiere 30% de ganancia
-                  </TooltipContent>
-                </Tooltip>
-                <span className="text-xs font-bold text-navy">{pctGanancia}%</span>
-              </div>
-              <Slider
-                value={[pctGanancia]}
-                onValueChange={([v]) => setPctGanancia(v)}
-                min={20}
-                max={80}
-                step={1}
-                className="[&_[role=slider]]:bg-navy"
-              />
-            </div>
-
-            {/* Alerts */}
-            {pctReposicion < 50 && (
-              <div className="flex items-start gap-2 bg-destructive/10 rounded-xl p-3">
-                <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                <p className="text-xs text-destructive">
-                  🚨 No recomendado. Con este % no cubrirás el costo de tu producto.
-                </p>
-              </div>
-            )}
-            {pctReposicion >= 50 && pctReposicion < 65 && (
-              <div className="flex items-start gap-2 bg-gold/10 rounded-xl p-3">
-                <AlertTriangle className="w-4 h-4 text-gold-dark shrink-0 mt-0.5" />
-                <p className="text-xs text-foreground">
-                  ⚠️ Estás usando menos del 65% para reponer. Tu inventario podría reducirse con el tiempo.
-                </p>
-              </div>
-            )}
-
-            {/* Results Panel */}
+            {/* Results using profile params */}
             {formAmount > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
@@ -468,25 +350,29 @@ export default function Challenge() {
                 className="bg-gradient-navy rounded-xl p-4 space-y-2"
               >
                 <p className="text-xs text-primary-foreground/70">
-                  Para tu {formName} de {formatCurrency(formAmount)} en {formMonths} {formMonths === 1 ? 'mes' : 'meses'}:
+                  Para {formName} de {formatCurrency(formAmount)} en {formMonths} {formMonths === 1 ? 'mes' : 'meses'}:
                 </p>
 
                 {!isReto && (
                   <p className="text-sm text-primary-foreground">
-                    Ahorra {formatCurrency(Math.round(calc.ahorroMensual))}/mes → {formatCurrency(Math.round(calc.ahorroDiario))}/día destinado a tu sueño
+                    Ahorro mensual necesario: {formatCurrency(Math.round(calc.ahorroMensual))}
                   </p>
                 )}
 
                 <p className="text-sm text-primary-foreground">
-                  Necesitas ganar {formatCurrency(Math.round(calc.gananciaMensual))}/mes ({pctGanancia}% de tus ventas)
+                  Ganancia mensual necesaria: {formatCurrency(Math.round(calc.gananciaMensual))}
                 </p>
 
                 <p className="text-sm text-primary-foreground">
-                  Eso equivale a vender {formatCurrency(Math.round(calc.ventaMensual))}/mes
+                  Ventas mensuales necesarias: {formatCurrency(Math.round(calc.ventaMensual))}
                 </p>
 
                 <p className="text-base font-bold text-gold mt-1">
                   = {formatCurrency(Math.round(calc.ventaDiaria))} por día 💪
+                </p>
+
+                <p className="text-[10px] text-primary-foreground/50 mt-2">
+                  Usando tu ganancia del {pctGanancia}% y ahorro del {pctAhorro}% · Ajusta en Mi Cuenta
                 </p>
               </motion.div>
             )}
