@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Sparkles, ShoppingBag, Send, RotateCcw, Trash2, Check } from 'lucide-react';
+import { Plus, Sparkles, ShoppingBag, Send, RotateCcw, Trash2, Check, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 // --- Types ---
@@ -328,28 +328,48 @@ export default function Sell() {
     }
   };
 
-  const whatsappUrl = useMemo(() => {
-    if (!receipt) return '';
-    const phone = receipt.clientPhone ? `52${receipt.clientPhone.replace(/\D/g, '')}` : '';
+  const buildWhatsappMsg = (): { cleanPhone: string; text: string } => {
+    if (!receipt) return { cleanPhone: '', text: '' };
+    const cleanPhone = receipt.clientPhone ? receipt.clientPhone.replace(/\D/g, '').slice(-10) : '';
     const itemLines = receipt.items.map(i => `${i.icon} ${i.category} x${i.quantity} — ${formatCurrency(i.salePrice * i.quantity)}`).join('%0A');
-    let text = `Hola+${encodeURIComponent(receipt.clientName)},+aquí+tu+recibo+😊%0A%0A${itemLines}%0A%0ATotal:+${formatCurrencyDecimals(receipt.totalCharged)}`;
+    let text = `🧾 Recibo de venta%0A%0AClienta: ${receipt.clientName}%0A%0A${itemLines}%0A%0ATotal: ${formatCurrencyDecimals(receipt.totalCharged)}`;
     if (receipt.isCredit && receipt.numPayments > 0) {
-      text += `%0A${receipt.numPayments}+pagos+de+${formatCurrencyDecimals(receipt.paymentAmount)}`;
+      text += `%0A${receipt.numPayments} pagos de ${formatCurrencyDecimals(receipt.paymentAmount)}`;
       if (receipt.firstPaymentDate) {
         const fp = new Date(receipt.firstPaymentDate + 'T12:00:00');
-        text += `%0A1er+pago:+${fp.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+        text += `%0A1er pago: ${fp.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
       }
     }
-    text += `%0A%0A¡Gracias+por+tu+compra!+🙏`;
-    return `https://wa.me/${phone}?text=${text}`;
-  }, [receipt]);
+    // Socia info
+    const sociaName = profile?.name || '';
+    const sociaPhone = profile?.phone || '';
+    if (sociaName) text += `%0A%0A${sociaName}`;
+    if (sociaPhone) {
+      const clean = sociaPhone.replace(/\D/g, '').slice(-10);
+      text += `%0A📱 ${clean.slice(0,2)}-${clean.slice(2,6)}-${clean.slice(6)}`;
+    }
+    text += `%0A%0A¡Gracias por tu preferencia! 💛`;
+    return { cleanPhone, text };
+  };
+
+  const openWhatsapp = () => {
+    const { cleanPhone, text } = buildWhatsappMsg();
+    if (cleanPhone) {
+      window.open(`https://wa.me/52${cleanPhone}?text=${text}`, '_blank');
+    }
+  };
 
   // ========================
   // RECEIPT
   // ========================
   const renderReceipt = () => {
     if (!receipt) return null;
-    const receiptMargin = receipt.totalCharged > 0 ? ((receipt.totalCharged - receipt.totalCost) / receipt.totalCharged * 100) : 0;
+    const sociaName = profile?.name || '';
+    const sociaPhone = profile?.phone || '';
+    const formattedSociaPhone = sociaPhone ? (() => {
+      const clean = sociaPhone.replace(/\D/g, '').slice(-10);
+      return `${clean.slice(0,2)}-${clean.slice(2,6)}-${clean.slice(6)}`;
+    })() : '';
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -374,19 +394,22 @@ export default function Sell() {
               })()}
             </p>
           )}
-          <p className="text-center text-gold font-semibold pt-1">Margen real: {receiptMargin.toFixed(0)}%</p>
           <p className="opacity-60 text-xs text-center">{receipt.date}</p>
+          {/* Socia info */}
+          <div className="border-t border-primary-foreground/20 mt-3 pt-3 text-center space-y-0.5">
+            <p className="text-sm">Gracias por tu compra 💛</p>
+            {sociaName && <p className="text-sm font-semibold">{sociaName}</p>}
+            {sociaPhone && <p className="text-xs opacity-80">📱 {formattedSociaPhone}</p>}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 pt-2">
           {receipt.clientPhone && (
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={openWhatsapp}
               className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold bg-[hsl(142,71%,35%)] text-primary-foreground"
             >
               <Send className="w-3.5 h-3.5" /> 📲 WhatsApp
-            </a>
+            </button>
           )}
           <button
             onClick={resetForm}
@@ -552,9 +575,18 @@ export default function Sell() {
                   <Label className="text-xs">Te costó ($)</Label>
                   <Input type="number" value={itemCost || ''} onChange={e => { setItemCost(Number(e.target.value) || 0); setItemSaleManual(false); }} placeholder="0" className="mt-1 text-sm" />
                 </div>
-                <div>
+              <div>
                   <Label className="text-xs">Le cobras ($)</Label>
-                  <Input type="number" value={itemSale || ''} onChange={e => { setItemSale(Number(e.target.value) || 0); setItemSaleManual(true); }} placeholder="0" className="mt-1 text-sm" />
+                  <div className="flex gap-1 mt-1">
+                    <Input type="number" value={itemSale || ''} onChange={e => { setItemSale(Number(e.target.value) || 0); setItemSaleManual(true); }} placeholder="0" className="text-sm flex-1" />
+                    {itemSaleManual && itemCost > 0 && (
+                      <button
+                        onClick={() => { setItemSaleManual(false); setItemSale(Math.round(itemCost * (1 + pctGanancia / 100))); }}
+                        className="text-[10px] text-navy shrink-0 px-1"
+                        title="Recalcular"
+                      >↺</button>
+                    )}
+                  </div>
                 </div>
               </div>
               {itemCost > 0 && !itemSaleManual && (
