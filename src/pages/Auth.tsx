@@ -55,7 +55,8 @@ export default function Auth() {
         >
           {/* Logo */}
           <div className="text-center mb-8">
-            <img src="/logo-price.png" alt="Price Shoes" className="h-16 object-contain mx-auto mb-3" />
+            <img src="/logo-um.png" alt="Universidad de la Mujer" className="h-10 object-contain mx-auto mb-3" />
+            <img src="/logo-price.png" alt="Price Shoes" className="h-20 object-contain mx-auto mb-3" />
             <p className="text-xs text-primary-foreground/60 font-medium uppercase tracking-wider">App para Socias</p>
             <h1 className="text-2xl font-bold text-primary-foreground mt-2">Mi Negocio Price</h1>
             <p className="text-sm text-primary-foreground/70 mt-1">

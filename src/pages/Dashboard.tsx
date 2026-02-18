@@ -248,14 +248,6 @@ export default function Dashboard() {
         className="px-5 pt-5 pb-6 space-y-4"
         style={{ background: 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)' }}
       >
-        {/* Badge UM */}
-        <div className="flex items-center gap-2">
-          <img src="/logo-um.png" alt="Universidad de la Mujer" className="h-5 object-contain" />
-          <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Universidad de la Mujer · Price Shoes
-          </span>
-        </div>
-
         {/* Profile row */}
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/perfil')} className="shrink-0">
