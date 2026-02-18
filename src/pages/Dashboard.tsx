@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb, ChevronDown, ChevronUp, Check, Circle } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import GuidedTour from '@/components/GuidedTour';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -41,6 +42,15 @@ export default function Dashboard() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tourActive, setTourActive] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('tour') === 'true') {
+      setTimeout(() => setTourActive(true), 800);
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
   const [data, setData] = useState<DashboardData>({
     totalSales: 0, targetAmount: 10000, deadline: '', overdueCredits: 0, inactiveClients: 0,
   });
@@ -270,9 +280,15 @@ export default function Dashboard() {
         className="px-5 pt-5 pb-6 space-y-4"
         style={{ background: 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)' }}
       >
+        {/* UM Badge */}
+        <div className="flex items-center gap-2 mb-4 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+          <img src="/logo-um.png" alt="Universidad de la Mujer" className="h-10 object-contain" />
+          <span className="font-nunito font-semibold" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Universidad de la Mujer</span>
+        </div>
+
         {/* Profile row */}
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/perfil')} className="shrink-0">
+          <button onClick={() => navigate('/perfil')} className="shrink-0" data-tour="avatar">
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
@@ -288,14 +304,14 @@ export default function Dashboard() {
                   border: '3px solid rgba(255,255,255,0.3)',
                 }}
               >
-                <span className="text-white font-bold text-lg" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                <span className="text-white font-bold text-lg font-nunito">
                   {initials}
                 </span>
               </div>
             )}
           </button>
           <div>
-            <h1 className="text-[22px] font-bold text-white" style={{ fontFamily: 'Nunito, sans-serif' }}>
+            <h1 className="text-[22px] font-bold text-white font-nunito">
               Hola, {firstName} 👋
             </h1>
             <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
@@ -310,6 +326,7 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="p-4"
+          data-tour="negocio"
           style={{
             background: 'rgba(255,255,255,0.12)',
             backdropFilter: 'blur(12px)',
@@ -321,7 +338,7 @@ export default function Dashboard() {
           <p style={{ fontSize: '9px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em' }}>
             MI NEGOCIO — {monthAbbr} {year}
           </p>
-          <p className="mt-1" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '42px', lineHeight: 1, letterSpacing: '-2px', color: 'white' }}>
+          <p className="mt-1 font-nunito" style={{ fontWeight: 900, fontSize: '42px', lineHeight: 1, letterSpacing: '-2px', color: 'white' }}>
             {formatCurrency(totalRealMes)}
           </p>
 
@@ -546,13 +563,14 @@ export default function Dashboard() {
               >
                 <Link
                   to={link.to}
+                  data-tour={link.label === 'Finanzas' ? 'finanzas' : link.label === 'Mis Clientas' ? 'clientas' : undefined}
                   className="flex flex-col items-center justify-center gap-2 bg-white rounded-2xl p-4"
                   style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}
                 >
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: '#F0E6F6' }}>
                     <link.icon className="w-5 h-5" style={{ color: '#6B2FA0' }} />
                   </div>
-                  <span className="font-bold" style={{ fontSize: '10px', color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>
+                  <span className="font-bold font-nunito" style={{ fontSize: '10px', color: '#2D1B69' }}>
                     {link.label}
                   </span>
                 </Link>
@@ -664,6 +682,8 @@ export default function Dashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <GuidedTour active={tourActive} onFinish={() => setTourActive(false)} />
     </div>
   );
 }

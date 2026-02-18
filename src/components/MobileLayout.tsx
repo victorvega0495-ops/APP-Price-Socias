@@ -38,6 +38,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
           </button>
         ))}
         <button
+          data-tour="fab"
           onClick={() => setFabOpen(!fabOpen)}
           className={`w-14 h-14 rounded-full shadow-gold flex items-center justify-center transition-transform duration-200 ${fabOpen ? 'rotate-45' : ''}`}
           style={{ background: 'linear-gradient(135deg, #C06DD6, #9B59B6)' }}

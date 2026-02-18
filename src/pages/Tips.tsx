@@ -106,8 +106,8 @@ export default function Tips() {
       {/* HEADER */}
       <div style={{ background: HEADER_GRADIENT, padding: '48px 20px 24px' }}>
         <div className="flex items-center gap-2 mb-2">
-          <img src="/logo-um.png" alt="UM" className="h-5 object-contain" />
-          <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inteligencia de negocio</span>
+          <img src="/logo-um.png" alt="UM" className="h-10 object-contain" />
+          <span className="font-nunito font-semibold" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inteligencia de negocio</span>
         </div>
         <h1 className="text-white" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>Mis Tips 💡</h1>
       </div>
