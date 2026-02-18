@@ -154,12 +154,7 @@ export default function Sell() {
 
   const regPaymentAmt = regSaleType === 'credit' && regNumPayments > 0 ? totalCharged / regNumPayments : totalCharged;
 
-  // Auto-calc sale price when cost changes
-  useEffect(() => {
-    if (!itemSaleManual && itemCost > 0) {
-      setItemSale(Math.round(itemCost * (1 + pctGanancia / 100)));
-    }
-  }, [itemCost, pctGanancia, itemSaleManual]);
+  // useEffect auto-calc removed — now handled inline in onChange of itemCost
 
   const loadClients = async () => {
     if (!user) return;
@@ -328,9 +323,8 @@ export default function Sell() {
     }
   };
 
-  const buildWhatsappMsg = (): { cleanPhone: string; text: string } => {
-    if (!receipt) return { cleanPhone: '', text: '' };
-    const cleanPhone = receipt.clientPhone ? receipt.clientPhone.replace(/\D/g, '').slice(-10) : '';
+  const buildText = () => {
+    if (!receipt) return '';
     const itemLines = receipt.items.map(i => `${i.icon} ${i.category} x${i.quantity} — ${formatCurrency(i.salePrice * i.quantity)}`).join('%0A');
     let text = `🧾 Recibo de venta%0A%0AClienta: ${receipt.clientName}%0A%0A${itemLines}%0A%0ATotal: ${formatCurrencyDecimals(receipt.totalCharged)}`;
     if (receipt.isCredit && receipt.numPayments > 0) {
@@ -340,7 +334,6 @@ export default function Sell() {
         text += `%0A1er pago: ${fp.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
       }
     }
-    // Socia info
     const sociaName = profile?.name || '';
     const sociaPhone = profile?.phone || '';
     if (sociaName) text += `%0A%0A${sociaName}`;
@@ -349,13 +342,24 @@ export default function Sell() {
       text += `%0A📱 ${clean.slice(0,2)}-${clean.slice(2,6)}-${clean.slice(6)}`;
     }
     text += `%0A%0A¡Gracias por tu preferencia! 💛`;
-    return { cleanPhone, text };
+    return text;
+  };
+
+  const buildWhatsappUrl = (): string | null => {
+    if (!receipt?.clientPhone) return null;
+    let digits = receipt.clientPhone.replace(/\D/g, '');
+    if (digits.length === 12 && digits.startsWith('52')) digits = digits.slice(2);
+    if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+    if (digits.length !== 10) return null;
+    return `https://wa.me/52${digits}?text=${buildText()}`;
   };
 
   const openWhatsapp = () => {
-    const { cleanPhone, text } = buildWhatsappMsg();
-    if (cleanPhone) {
-      window.open(`https://wa.me/52${cleanPhone}?text=${text}`, '_blank');
+    const url = buildWhatsappUrl();
+    if (url) {
+      window.open(url, '_blank', 'noopener');
+    } else {
+      toast({ title: 'Esta clienta no tiene teléfono registrado', variant: 'destructive' });
     }
   };
 
@@ -573,7 +577,7 @@ export default function Sell() {
                 </div>
                 <div>
                   <Label className="text-xs">Te costó ($)</Label>
-                  <Input type="number" value={itemCost || ''} onChange={e => { setItemCost(Number(e.target.value) || 0); setItemSaleManual(false); }} placeholder="0" className="mt-1 text-sm" />
+                  <Input type="number" value={itemCost || ''} onChange={e => { const val = Number(e.target.value) || 0; setItemCost(val); if (!itemSaleManual) { setItemSale(Math.round(val * (1 + pctGanancia / 100))); } }} placeholder="0" className="mt-1 text-sm" />
                 </div>
               <div>
                   <Label className="text-xs">Le cobras ($)</Label>
