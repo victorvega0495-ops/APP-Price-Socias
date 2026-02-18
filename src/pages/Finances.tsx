@@ -58,6 +58,7 @@ export default function Finances() {
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [saleSuccess, setSaleSuccess] = useState(false);
+  const [isCreditOverride, setIsCreditOverride] = useState(false);
 
   // Goals
   const [monthlyTarget, setMonthlyTarget] = useState(0);
@@ -157,6 +158,7 @@ export default function Finances() {
     setSaleDesc('');
     setSaleCreditDueDate('');
     setSaleSuccess(false);
+    setIsCreditOverride(saleType === 'credit');
     setSaleDialogOpen(true);
   };
 
@@ -179,14 +181,13 @@ export default function Finances() {
 
   const registerSale = async () => {
     if (!user || !selectedClientId || clientPrice <= 0) return;
-    const isCredit = saleType === 'credit';
     await supabase.from('purchases').insert({
       user_id: user.id,
       client_id: selectedClientId,
       amount: clientPrice,
       description: saleDesc,
-      is_credit: isCredit,
-      credit_due_date: isCredit && saleCreditDueDate ? saleCreditDueDate : null,
+      is_credit: isCreditOverride,
+      credit_due_date: isCreditOverride && saleCreditDueDate ? saleCreditDueDate : null,
     });
     await supabase.from('clients').update({ last_purchase_date: new Date().toISOString().split('T')[0] }).eq('id', selectedClientId);
     setSaleSuccess(true);
@@ -639,13 +640,13 @@ export default function Finances() {
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={saleType === 'credit'}
-                    readOnly
+                    checked={isCreditOverride}
+                    onChange={(e) => setIsCreditOverride(e.target.checked)}
                     className="rounded"
                   />
                   <span className="text-sm text-foreground">Es venta a crédito</span>
                 </div>
-                {saleType === 'credit' && (
+                {isCreditOverride && (
                   <div>
                     <Label className="text-sm">Fecha de pago acordada</Label>
                     <Input
