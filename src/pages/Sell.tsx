@@ -446,7 +446,7 @@ export default function Sell() {
         className="rounded-xl p-5 text-white space-y-3"
         style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}
       >
-        <p className="text-lg font-bold text-center" style={{ fontFamily: 'Nunito, sans-serif' }}>🧾 Recibo de venta</p>
+        <p className="text-lg font-bold text-center font-nunito">🧾 Recibo de venta</p>
         <div className="space-y-1 text-sm">
           <p><span className="opacity-70">Clienta:</span> {receipt.clientName}</p>
           <div className="space-y-0.5">
@@ -454,7 +454,7 @@ export default function Sell() {
               <p key={i.id}>{i.icon} {i.category} x{i.quantity} — {formatCurrency(i.salePrice * i.quantity)}</p>
             ))}
           </div>
-          <p className="text-2xl font-bold pt-2 text-center" style={{ fontFamily: 'Nunito, sans-serif' }}>Total: {formatCurrencyDecimals(receipt.totalCharged)}</p>
+          <p className="text-2xl font-bold pt-2 text-center font-nunito">Total: {formatCurrencyDecimals(receipt.totalCharged)}</p>
           {receipt.isCredit && receipt.numPayments > 0 && (
             <p className="text-center opacity-80">
               {receipt.numPayments} pagos de {formatCurrencyDecimals(receipt.paymentAmount)}
@@ -787,10 +787,10 @@ export default function Sell() {
             >
               🎉
             </motion.span>
-            <p className="text-white mt-4" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '28px' }}>
+            <p className="text-white mt-4 font-nunito" style={{ fontWeight: 900, fontSize: '28px' }}>
               ¡Venta registrada!
             </p>
-            <p className="mt-2" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '42px', color: '#D4A0E8' }}>
+            <p className="mt-2 font-nunito" style={{ fontWeight: 900, fontSize: '42px', color: '#D4A0E8' }}>
               {formatCurrency(celebrationData.total)}
             </p>
             <p className="mt-1" style={{ fontSize: '16px', color: 'rgba(255,255,255,0.7)' }}>
@@ -801,7 +801,7 @@ export default function Sell() {
       </AnimatePresence>
       {/* HEADER */}
       <div style={{ background: HEADER_GRADIENT, padding: '48px 20px 24px' }}>
-        <h1 className="text-white" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>
+        <h1 className="text-white font-nunito" style={{ fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>
           Vender 🛍️
         </h1>
         <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Calcula tu precio y registra la venta</p>
@@ -900,7 +900,7 @@ export default function Sell() {
                     >
                       <div className="rounded-xl p-5 text-center text-white" style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}>
                         <p className="text-xs opacity-70 font-medium">Cóbrale a tu clienta</p>
-                        <p className="text-3xl font-bold nunito">{formatCurrencyDecimals(clientPrice)}</p>
+                        <p className="text-3xl font-bold font-nunito">{formatCurrencyDecimals(clientPrice)}</p>
                         <p className="text-xs opacity-60 mt-1">
                           Tu ganancia: {formatCurrency(Math.round(c3Profit))} ({pctGanancia}% de {formatCurrency(calcBasePrice)})
                         </p>
@@ -924,15 +924,15 @@ export default function Sell() {
                       <div className="grid grid-cols-3 gap-2">
                         <div className="bg-white rounded-xl p-3 text-center" style={{ boxShadow: CARD_SHADOW }}>
                           <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Producto {pctProducto}%</p>
-                          <p className="text-sm font-bold nunito" style={{ color: '#2D1B69' }}>{formatCurrency(Math.round(c3Product))}</p>
+                          <p className="text-sm font-bold font-nunito" style={{ color: '#2D1B69' }}>{formatCurrency(Math.round(c3Product))}</p>
                         </div>
                         <div className="bg-white rounded-xl p-3 text-center" style={{ boxShadow: CARD_SHADOW }}>
                           <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Ganancia {pctGanancia}%</p>
-                          <p className="text-sm font-bold nunito" style={{ color: '#2D1B69' }}>{formatCurrency(Math.round(c3Profit))}</p>
+                          <p className="text-sm font-bold font-nunito" style={{ color: '#2D1B69' }}>{formatCurrency(Math.round(c3Profit))}</p>
                         </div>
                         <div className="bg-white rounded-xl p-3 text-center" style={{ boxShadow: CARD_SHADOW }}>
                           <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Gastos 5%</p>
-                          <p className="text-sm font-bold nunito" style={{ color: '#2D1B69' }}>{formatCurrency(Math.round(c3Expenses))}</p>
+                          <p className="text-sm font-bold font-nunito" style={{ color: '#2D1B69' }}>{formatCurrency(Math.round(c3Expenses))}</p>
                         </div>
                       </div>
 

@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+* {
+  --font-nunito: 'Nunito', ui-sans-serif, system-ui;
+}
+
+body {
+  font-family: 'Nunito', ui-sans-serif, system-ui;
+}
+
 @layer base {
   :root {
     --background: 220 20% 97%;
@@ -135,4 +143,9 @@
   .nunito {
     font-family: 'Nunito', system-ui, sans-serif !important;
   }
+}
+
+.font-nunito,
+[class*="font-nunito"] {
+  font-family: 'Nunito', ui-sans-serif, system-ui !important;
 }
