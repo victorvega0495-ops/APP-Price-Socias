@@ -14,7 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        nunito: ['Nunito', 'ui-sans-serif', 'system-ui'],
+        nunito: ['Plus Jakarta Sans', 'ui-sans-serif', 'system-ui'],
+        jakarta: ['Plus Jakarta Sans', 'ui-sans-serif', 'system-ui'],
       },
       colors: {
         border: "hsl(var(--border))",

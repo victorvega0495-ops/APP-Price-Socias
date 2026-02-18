@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 * {
-  --font-nunito: 'Nunito', ui-sans-serif, system-ui;
+  --font-nunito: 'Plus Jakarta Sans', ui-sans-serif, system-ui;
 }
 
 body {
-  font-family: 'Nunito', ui-sans-serif, system-ui;
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui;
 }
 
 @layer base {
@@ -103,7 +103,7 @@ body {
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -141,11 +141,11 @@ body {
     content: '$';
   }
   .nunito {
-    font-family: 'Nunito', system-ui, sans-serif !important;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
   }
 }
 
 .font-nunito,
 [class*="font-nunito"] {
-  font-family: 'Nunito', ui-sans-serif, system-ui !important;
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui !important;
 }
