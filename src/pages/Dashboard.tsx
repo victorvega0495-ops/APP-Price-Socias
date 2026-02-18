@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
+import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb, ChevronDown, ChevronUp, Check, Circle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +54,13 @@ export default function Dashboard() {
   const [showOtherGoals, setShowOtherGoals] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [goalInput, setGoalInput] = useState(0);
+
+  // Checklist state
+  const [checklistDismissed, setChecklistDismissed] = useState(() => localStorage.getItem('onboarding_complete') === 'true');
+  const [hasPurchases, setHasPurchases] = useState(false);
+  const [hasClients, setHasClients] = useState(false);
+  const [hasGoals, setHasGoals] = useState(false);
+  const [checklistCelebrating, setChecklistCelebrating] = useState(false);
 
   const pctGanancia = (profile?.pct_ganancia ?? 30) / 100;
 
@@ -166,6 +173,21 @@ export default function Dashboard() {
         overdueCredits: overdueCredits || 0,
         inactiveClients: inactiveClients || 0,
       });
+
+      // Checklist data
+      const { count: purchaseCount } = await supabase
+        .from('purchases')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      setHasPurchases((purchaseCount || 0) > 0);
+
+      const { count: clientCount } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      setHasClients((clientCount || 0) > 0);
+
+      setHasGoals(goals.length > 0);
     };
     load();
   }, [user]);
@@ -299,7 +321,7 @@ export default function Dashboard() {
           <p style={{ fontSize: '9px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em' }}>
             MI NEGOCIO — {monthAbbr} {year}
           </p>
-          <p className="text-white mt-1" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '36px', lineHeight: 1.1 }}>
+          <p className="text-white mt-1" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '40px', letterSpacing: '-2px', lineHeight: 1.1 }}>
             {formatCurrency(totalRealMes)}
           </p>
 
@@ -539,6 +561,76 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Onboarding Checklist */}
+        {(() => {
+          const hasMetodologia = !!profile?.metodologia;
+          const steps = [
+            { done: hasMetodologia, label: 'Metodología configurada', to: '/perfil' },
+            { done: hasPurchases, label: 'Primera venta registrada', to: '/vender' },
+            { done: hasClients, label: 'Primera clienta agregada', to: '/clientas' },
+            { done: hasGoals, label: 'Meta configurada', to: '/mis-metas' },
+          ];
+          const completed = steps.filter(s => s.done).length;
+          const allDone = completed === 4;
+
+          if (checklistDismissed) return null;
+
+          if (allDone && !checklistCelebrating) {
+            setTimeout(() => {
+              setChecklistCelebrating(true);
+              setTimeout(() => {
+                localStorage.setItem('onboarding_complete', 'true');
+                setChecklistDismissed(true);
+              }, 3000);
+            }, 0);
+          }
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl overflow-hidden"
+              style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
+            >
+              {/* Progress bar */}
+              <div className="h-1.5 w-full" style={{ background: '#F0E6F6' }}>
+                <div className="h-full transition-all duration-700" style={{ width: `${(completed / 4) * 100}%`, background: 'linear-gradient(90deg, #C06DD6, #6B2FA0)' }} />
+              </div>
+
+              {checklistCelebrating ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-6 text-center"
+                >
+                  <p className="text-2xl">🎉</p>
+                  <p className="text-sm font-bold mt-2" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>¡Lista para triunfar!</p>
+                </motion.div>
+              ) : (
+                <div className="p-4">
+                  <p className="text-sm font-bold" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>Tu negocio en marcha ✨</p>
+                  <p className="text-xs mb-3" style={{ color: '#8a8a9a' }}>Completa estos pasos para sacarle todo el jugo a tu app</p>
+                  <div className="space-y-2">
+                    {steps.map((s, i) => (
+                      <Link key={i} to={s.to} className="flex items-center gap-3 py-1.5">
+                        {s.done ? (
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#22C55E' }}>
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        ) : (
+                          <Circle className="w-5 h-5" style={{ color: '#D1D5DB' }} />
+                        )}
+                        <span className={`text-sm ${s.done ? 'line-through' : ''}`} style={{ color: s.done ? '#8a8a9a' : '#2D1B69' }}>
+                          {s.label}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })()}
         {/* Price Shoes footer */}
         <div className="flex flex-col items-center gap-1 pt-4 pb-8">
           <span className="text-[10px]" style={{ color: '#999' }}>Herramienta oficial de</span>
