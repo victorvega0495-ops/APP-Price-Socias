@@ -214,7 +214,7 @@ export default function Challenge() {
             isRetoActive ? 'border-gold' : 'border-transparent'
           }`}
         >
-          <span className="text-4xl">{RETO_TEMPLATE.emoji}</span>
+          <img src="/logo-reto.png" alt="Reto de 0 a 10,000" className="h-12 object-contain" />
           <div>
             <span className="text-base font-bold text-primary-foreground">{RETO_TEMPLATE.name}</span>
             <p className="text-[10px] text-primary-foreground/50 mt-0.5">Programa oficial de Price Shoes</p>
