@@ -36,6 +36,8 @@ interface Client {
   last_purchase_date: string | null;
   pending_balance?: number;
   credit_due_date_earliest?: string | null;
+  total_cobrado?: number;
+  last_paid_date?: string | null;
 }
 
 interface Purchase {
@@ -54,7 +56,7 @@ export default function Clients() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [clients, setClients] = useState<Client[]>([]);
-  const [filter, setFilter] = useState<'all' | 'cobranza' | 'reactivar'>('all');
+  const [filter, setFilter] = useState<'all' | 'cobranza' | 'cobrado'>('all');
   const [addOpen, setAddOpen] = useState(searchParams.get('add') === 'true');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -86,7 +88,18 @@ export default function Clients() {
           const pending = creditData?.reduce((s, p) => s + (Number(p.amount) - Number(p.credit_paid_amount || 0)), 0) || 0;
           const earliestDue = creditData?.filter(p => p.credit_due_date)
             .sort((a, b) => (a.credit_due_date || '').localeCompare(b.credit_due_date || ''))[0]?.credit_due_date || null;
-          return { ...c, pending_balance: pending, credit_due_date_earliest: earliestDue } as Client;
+
+          // Cobrado data
+          const { data: paidData } = await supabase
+            .from('purchases')
+            .select('amount, purchase_date')
+            .eq('client_id', c.id)
+            .eq('is_credit', true)
+            .eq('credit_paid', true);
+          const totalCobrado = paidData?.reduce((s, p) => s + Number(p.amount), 0) || 0;
+          const lastPaidDate = paidData?.map(p => p.purchase_date).sort().reverse()[0] || null;
+
+          return { ...c, pending_balance: pending, credit_due_date_earliest: earliestDue, total_cobrado: totalCobrado, last_paid_date: lastPaidDate } as Client;
         })
       );
       setClients(clientsWithBalance);
@@ -143,10 +156,7 @@ export default function Clients() {
 
   const filteredClients = clients.filter(c => {
     if (filter === 'cobranza') return (c.pending_balance || 0) > 0;
-    if (filter === 'reactivar') {
-      if (!c.last_purchase_date) return true;
-      return new Date(c.last_purchase_date) < thirtyDaysAgo;
-    }
+    if (filter === 'cobrado') return (c.total_cobrado || 0) > 0;
     return true;
   });
 
@@ -308,13 +318,13 @@ export default function Clients() {
 
       {/* Filters */}
       <div className="flex gap-2 mb-4">
-        {(['all', 'cobranza', 'reactivar'] as const).map(f => (
+        {(['all', 'cobranza', 'cobrado'] as const).map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${filter === f ? 'bg-navy text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
           >
-            {f === 'all' ? 'Todas' : f === 'cobranza' ? 'Cobranza' : 'Reactivar'}
+            {f === 'all' ? 'Todas' : f === 'cobranza' ? 'Cobranza' : 'Cobrado'}
           </button>
         ))}
       </div>
@@ -323,7 +333,7 @@ export default function Clients() {
       <div className="space-y-2">
         {filteredClients.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">
-            {filter === 'all' ? 'Agrega tu primera clienta 💪' : 'No hay clientas en este filtro'}
+            {filter === 'all' ? 'Agrega tu primera clienta 💪' : filter === 'cobrado' ? 'Aún no tienes cobros registrados ✅' : 'No hay clientas en este filtro'}
           </p>
         )}
         {filteredClients.map((c, i) => {
@@ -339,8 +349,6 @@ export default function Clients() {
           let waMessage = '';
           if (filter === 'cobranza') {
             waMessage = `Hola ${c.name}, te recuerdo amablemente que tienes un saldo pendiente de ${formatCurrency(c.pending_balance || 0)} 😊 ¿Cuándo podemos coordinar tu pago? ¡Gracias!`;
-          } else if (filter === 'reactivar') {
-            waMessage = `Hola ${c.name}, ¡ya te extrañamos! Tenemos productos nuevos que te van a encantar 👟 ¿Cuándo te podemos atender? ¡Saludos!`;
           }
 
           return (
@@ -367,10 +375,17 @@ export default function Clients() {
                       </span>
                     )}
                   </div>
-                ) : filter === 'reactivar' ? (
-                  <p className="text-xs text-muted-foreground">
-                    {daysAgo !== null ? `Última compra: ${daysAgo} días` : 'Sin compras registradas'}
-                  </p>
+                ) : filter === 'cobrado' ? (
+                  <div>
+                    <p className="text-xs font-semibold text-green-600">
+                      Cobrado: {formatCurrency(c.total_cobrado || 0)}
+                    </p>
+                    {c.last_paid_date && (
+                      <p className="text-xs text-muted-foreground">
+                        Último cobro: {formatDate(c.last_paid_date)}
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
                     {c.last_purchase_date ? `Última compra: ${formatDate(c.last_purchase_date)}` : 'Sin compras'}
@@ -382,7 +397,7 @@ export default function Clients() {
                 {filter === 'all' && (c.pending_balance || 0) > 0 && (
                   <p className="text-sm font-semibold text-destructive">{formatCurrency(c.pending_balance || 0)}</p>
                 )}
-                {(filter === 'cobranza' || filter === 'reactivar') && (
+                {filter === 'cobranza' && (
                   <WhatsAppButton client={c} message={waMessage} />
                 )}
                 {filter === 'all' && c.phone && <Phone className="w-3.5 h-3.5 text-muted-foreground" />}
