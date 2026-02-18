@@ -12,6 +12,7 @@ import Clients from "./pages/Clients";
 import Inventory from "./pages/Inventory";
 import Sell from "./pages/Sell";
 import Challenge from "./pages/Challenge";
+import Tips from "./pages/Tips";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -39,6 +40,7 @@ function ProtectedRoutes() {
         <Route path="/inventario" element={<Inventory />} />
         <Route path="/vender" element={<Sell />} />
         <Route path="/mis-metas" element={<Challenge />} />
+        <Route path="/tips" element={<Tips />} />
         <Route path="/perfil" element={<Profile />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
