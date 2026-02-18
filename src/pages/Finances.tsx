@@ -48,6 +48,7 @@ export default function Finances() {
   ]);
   const [monthlyGoal, setMonthlyGoal] = useState(0);
   const [showWeekEditor, setShowWeekEditor] = useState(false);
+  const [weekConflicts, setWeekConflicts] = useState<Record<number, { show: boolean; manual: number; real: number }>>({});
 
   // Historial
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
@@ -102,22 +103,62 @@ export default function Finances() {
       })));
     }
   };
+  const daysInMonth = new Date(year, month, 0).getDate();
 
-  const saveWeek = async (weekData: WeekData) => {
+  const doSaveWeek = async (weekData: WeekData, totalSalesOverride?: number) => {
     if (!user) return;
+    const finalSales = totalSalesOverride !== undefined ? totalSalesOverride : weekData.total_sales;
     const { error } = await supabase
       .from('weekly_finances')
       .upsert({
         user_id: user.id, year, month,
         week: weekData.week,
-        total_sales: weekData.total_sales,
+        total_sales: finalSales,
         product_cost: weekData.product_cost,
       }, { onConflict: 'user_id,year,month,week' });
     if (error) {
       toast({ title: 'Error al guardar', variant: 'destructive' });
     } else {
+      // Update local state if override
+      if (totalSalesOverride !== undefined) {
+        setWeeks(prev => prev.map(w => w.week === weekData.week ? { ...w, total_sales: finalSales } : w));
+      }
+      setWeekConflicts(prev => ({ ...prev, [weekData.week]: { show: false, manual: 0, real: 0 } }));
       toast({ title: '¡Guardado! ✅' });
     }
+  };
+
+  const saveWeek = async (weekData: WeekData) => {
+    if (!user) return;
+    // Calculate date range for this week
+    const weekRanges: Record<number, [number, number]> = {
+      1: [1, 7],
+      2: [8, 14],
+      3: [15, 21],
+      4: [22, daysInMonth],
+    };
+    const [startDay, endDay] = weekRanges[weekData.week] || [1, 7];
+    const startDate = `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+
+    const { data: purchaseData } = await supabase
+      .from('purchases')
+      .select('amount')
+      .eq('user_id', user.id)
+      .gte('purchase_date', startDate)
+      .lte('purchase_date', endDate);
+
+    const realTotal = purchaseData?.reduce((s, p) => s + Number(p.amount), 0) || 0;
+
+    if (realTotal > 0 && Math.abs(weekData.total_sales - realTotal) > 50) {
+      setWeekConflicts(prev => ({
+        ...prev,
+        [weekData.week]: { show: true, manual: weekData.total_sales, real: realTotal },
+      }));
+      return;
+    }
+
+    await doSaveWeek(weekData);
   };
 
   const openDetail = (p: PurchaseRow) => {
@@ -179,7 +220,8 @@ export default function Finances() {
   const weeksWithData = weeks.filter(w => w.total_sales > 0);
   const avgWeekly = weeksWithData.length > 0 ? monthTotal / weeksWithData.length : 0;
   const bestWeek = weeksWithData.length > 0 ? weeksWithData.reduce((best, w) => w.total_sales > best.total_sales ? w : best, weeksWithData[0]) : null;
-  const goalProgress = monthlyGoal > 0 ? Math.min(100, Math.round((monthTotal / monthlyGoal) * 100)) : 0;
+  const salesGoal = monthlyGoal > 0 ? monthlyGoal / 0.30 : 0;
+  const goalProgress = salesGoal > 0 ? Math.min(100, Math.round((monthTotal / salesGoal) * 100)) : 0;
 
   // 3C breakdown
   const reposicion = monthTotal * 0.65;
@@ -191,8 +233,7 @@ export default function Finances() {
   const deseos = ganancia * 0.30;
   const ahorro = ganancia * 0.20;
 
-  // Days remaining in month
-  const daysInMonth = new Date(year, month, 0).getDate();
+  // Days remaining in month (daysInMonth also used in saveWeek above)
   const today = now.getDate();
   const daysRemaining = Math.max(1, daysInMonth - today);
 
@@ -232,14 +273,18 @@ export default function Finances() {
             </div>
             {monthlyGoal > 0 && (
               <div className="mt-3">
-                <div className="flex justify-between text-[10px] opacity-70 mb-1">
-                  <span>Meta: {formatCurrency(monthlyGoal)}</span>
-                  <span>{goalProgress}%</span>
+                <div className="flex flex-col gap-0.5 text-[10px] opacity-70 mb-1">
+                  <div className="flex justify-between">
+                    <span>Meta de venta: {formatCurrency(salesGoal)}</span>
+                    <span>{goalProgress}%</span>
+                  </div>
+                  <span>Meta de ganancia: {formatCurrency(monthlyGoal)}</span>
                 </div>
                 <Progress value={goalProgress} className="h-2 bg-primary-foreground/20 [&>div]:bg-gold" />
-                {monthTotal < monthlyGoal && (
-                  <p className="text-[10px] opacity-70 mt-1.5">
-                    Necesitas vender {formatCurrency(Math.ceil((monthlyGoal - monthTotal) / daysRemaining))} por día para llegar
+                <p className="text-[10px] opacity-50 mt-1">Tu ganancia es el 30% de tus ventas totales</p>
+                {monthTotal < salesGoal && (
+                  <p className="text-[10px] opacity-70 mt-1">
+                    Necesitas vender {formatCurrency(Math.ceil((salesGoal - monthTotal) / daysRemaining))} por día para llegar
                   </p>
                 )}
               </div>
@@ -251,7 +296,7 @@ export default function Finances() {
             <h3 className="text-sm font-semibold text-foreground mb-2">Desglose 3C del mes</h3>
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-green-700 dark:text-green-400 font-medium">Reposición 65%</p>
+                <p className="text-[10px] text-green-700 dark:text-green-400 font-medium">Producto / CrediPrice 65%</p>
                 <p className="text-sm font-bold text-green-800 dark:text-green-300 mt-1">{formatCurrency(reposicion)}</p>
               </div>
               <div className="bg-card border border-border rounded-xl p-3 text-center bg-gradient-navy">
@@ -402,6 +447,33 @@ export default function Finances() {
                         >
                           Guardar semana {w.week}
                         </Button>
+
+                        {/* Week conflict alert */}
+                        {weekConflicts[w.week]?.show && (
+                          <div className="mt-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3 space-y-2">
+                            <p className="text-xs text-yellow-800 dark:text-yellow-300">
+                              ⚠️ Tu registro ({formatCurrency(weekConflicts[w.week].manual)}) no coincide con tus ventas registradas ({formatCurrency(weekConflicts[w.week].real)}). ¿Cuál es el correcto?
+                            </p>
+                            <Button
+                              size="sm"
+                              onClick={() => doSaveWeek(w, weekConflicts[w.week].real)}
+                              className="w-full bg-navy text-primary-foreground h-8 text-xs rounded-lg"
+                            >
+                              Usar mis transacciones ({formatCurrency(weekConflicts[w.week].real)})
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => doSaveWeek(w)}
+                              className="w-full h-8 text-xs rounded-lg"
+                            >
+                              Mantener mi cifra ({formatCurrency(weekConflicts[w.week].manual)})
+                            </Button>
+                            <p className="text-[10px] text-muted-foreground">
+                              💡 Registra todas tus ventas en 'Vender' para mantener tu historial al día
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
