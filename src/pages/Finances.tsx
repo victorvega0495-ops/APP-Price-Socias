@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency, formatCurrencyDecimals } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, TrendingUp, History, Pencil } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { TrendingUp, History, Pencil, ChevronDown, ChevronUp, Star, AlertTriangle, CheckCircle2, MinusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -45,6 +46,8 @@ export default function Finances() {
     { week: 3, total_sales: 0, product_cost: 0 },
     { week: 4, total_sales: 0, product_cost: 0 },
   ]);
+  const [monthlyGoal, setMonthlyGoal] = useState(0);
+  const [showWeekEditor, setShowWeekEditor] = useState(false);
 
   // Historial
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
@@ -55,18 +58,31 @@ export default function Finances() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const { data } = await supabase
-        .from('weekly_finances')
-        .select('week, total_sales, product_cost')
-        .eq('user_id', user.id)
-        .eq('year', year)
-        .eq('month', month);
-      if (data && data.length > 0) {
+      const [weekRes, goalRes] = await Promise.all([
+        supabase
+          .from('weekly_finances')
+          .select('week, total_sales, product_cost')
+          .eq('user_id', user.id)
+          .eq('year', year)
+          .eq('month', month),
+        supabase
+          .from('monthly_goals')
+          .select('target_income')
+          .eq('user_id', user.id)
+          .eq('year', year)
+          .eq('month', month),
+      ]);
+
+      if (weekRes.data && weekRes.data.length > 0) {
         const mapped = [1, 2, 3, 4].map(w => {
-          const found = data.find(d => d.week === w);
+          const found = weekRes.data.find(d => d.week === w);
           return { week: w, total_sales: found ? Number(found.total_sales) : 0, product_cost: found ? Number(found.product_cost) : 0 };
         });
         setWeeks(mapped);
+      }
+
+      if (goalRes.data && goalRes.data.length > 0) {
+        setMonthlyGoal(Number(goalRes.data[0].target_income));
       }
     };
     load();
@@ -157,108 +173,245 @@ export default function Finances() {
   };
 
   const monthNames = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+  // ── Computed values for "Mi Mes" ──
   const monthTotal = weeks.reduce((s, w) => s + w.total_sales, 0);
+  const weeksWithData = weeks.filter(w => w.total_sales > 0);
+  const avgWeekly = weeksWithData.length > 0 ? monthTotal / weeksWithData.length : 0;
+  const bestWeek = weeksWithData.length > 0 ? weeksWithData.reduce((best, w) => w.total_sales > best.total_sales ? w : best, weeksWithData[0]) : null;
+  const goalProgress = monthlyGoal > 0 ? Math.min(100, Math.round((monthTotal / monthlyGoal) * 100)) : 0;
+
+  // 3C breakdown
+  const reposicion = monthTotal * 0.65;
+  const ganancia = monthTotal * 0.30;
+  const gastos = monthTotal * 0.05;
+
+  // 50-30-20 of ganancia
+  const necesidades = ganancia * 0.50;
+  const deseos = ganancia * 0.30;
+  const ahorro = ganancia * 0.20;
+
+  // Days remaining in month
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const today = now.getDate();
+  const daysRemaining = Math.max(1, daysInMonth - today);
 
   return (
     <div className="px-4 pt-6 pb-4">
       <h1 className="text-xl font-bold text-foreground mb-1">Finanzas</h1>
       <p className="text-sm text-muted-foreground mb-4">{monthNames[month]} {year}</p>
 
-      <Tabs defaultValue="weekly" className="w-full" onValueChange={(v) => { if (v === 'historial') loadPurchases(); }}>
+      <Tabs defaultValue="mimes" className="w-full" onValueChange={(v) => { if (v === 'historial') loadPurchases(); }}>
         <TabsList className="grid w-full grid-cols-2 bg-muted rounded-xl h-10">
-          <TabsTrigger value="weekly" className="text-xs rounded-lg data-[state=active]:bg-navy data-[state=active]:text-primary-foreground">
-            <TrendingUp className="w-3.5 h-3.5 mr-1" /> Control Semanal
+          <TabsTrigger value="mimes" className="text-xs rounded-lg data-[state=active]:bg-navy data-[state=active]:text-primary-foreground">
+            <TrendingUp className="w-3.5 h-3.5 mr-1" /> Mi Mes
           </TabsTrigger>
           <TabsTrigger value="historial" className="text-xs rounded-lg data-[state=active]:bg-navy data-[state=active]:text-primary-foreground">
             <History className="w-3.5 h-3.5 mr-1" /> Historial
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab A: Control Semanal */}
-        <TabsContent value="weekly" className="mt-4 space-y-3">
-          {weeks.map((w, i) => {
-            const costLimit = w.total_sales * 0.65;
-            const isOverCost = w.product_cost > costLimit && w.total_sales > 0;
-            return (
-              <motion.div
-                key={w.week}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="bg-card rounded-xl p-4 shadow-card"
-              >
-                <h3 className="text-sm font-semibold text-foreground mb-3">Semana {w.week}</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Venta total</Label>
-                    <Input
-                      type="number"
-                      value={w.total_sales || ''}
-                      onChange={(e) => {
-                        const updated = [...weeks];
-                        updated[i] = { ...w, total_sales: Number(e.target.value) || 0 };
-                        setWeeks(updated);
-                      }}
-                      placeholder="$0"
-                      className="h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Costo producto</Label>
-                    <Input
-                      type="number"
-                      value={w.product_cost || ''}
-                      onChange={(e) => {
-                        const updated = [...weeks];
-                        updated[i] = { ...w, product_cost: Number(e.target.value) || 0 };
-                        setWeeks(updated);
-                      }}
-                      placeholder="$0"
-                      className="h-9"
-                    />
-                  </div>
+        {/* ════════ Tab: Mi Mes ════════ */}
+        <TabsContent value="mimes" className="mt-4 space-y-4">
+
+          {/* ── Sección 1: Resumen ── */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-navy rounded-xl p-4 text-primary-foreground">
+            <p className="text-xs opacity-70 mb-1">Total vendido en el mes</p>
+            <p className="text-3xl font-bold">{formatCurrency(monthTotal)}</p>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="bg-primary-foreground/10 rounded-lg p-2.5">
+                <p className="text-[10px] opacity-70">Promedio semanal</p>
+                <p className="text-sm font-semibold">{formatCurrency(avgWeekly)}</p>
+              </div>
+              <div className="bg-primary-foreground/10 rounded-lg p-2.5">
+                <p className="text-[10px] opacity-70">Mejor semana</p>
+                <p className="text-sm font-semibold">
+                  {bestWeek ? `S${bestWeek.week}: ${formatCurrency(bestWeek.total_sales)}` : '—'}
+                </p>
+              </div>
+            </div>
+            {monthlyGoal > 0 && (
+              <div className="mt-3">
+                <div className="flex justify-between text-[10px] opacity-70 mb-1">
+                  <span>Meta: {formatCurrency(monthlyGoal)}</span>
+                  <span>{goalProgress}%</span>
                 </div>
-                {w.total_sales > 0 && (
-                  <div className="mt-2 grid grid-cols-3 gap-1 text-center">
-                    <div className="bg-muted rounded-lg p-2">
-                      <p className="text-[10px] text-muted-foreground">Reposición 65%</p>
-                      <p className="text-xs font-semibold">{formatCurrency(w.total_sales * 0.65)}</p>
-                    </div>
-                    <div className="bg-muted rounded-lg p-2">
-                      <p className="text-[10px] text-muted-foreground">Ganancia 30%</p>
-                      <p className="text-xs font-semibold text-navy">{formatCurrency(w.total_sales * 0.30)}</p>
-                    </div>
-                    <div className="bg-muted rounded-lg p-2">
-                      <p className="text-[10px] text-muted-foreground">Gastos 5%</p>
-                      <p className="text-xs font-semibold">{formatCurrency(w.total_sales * 0.05)}</p>
-                    </div>
-                  </div>
+                <Progress value={goalProgress} className="h-2 bg-primary-foreground/20 [&>div]:bg-gold" />
+                {monthTotal < monthlyGoal && (
+                  <p className="text-[10px] opacity-70 mt-1.5">
+                    Necesitas vender {formatCurrency(Math.ceil((monthlyGoal - monthTotal) / daysRemaining))} por día para llegar
+                  </p>
                 )}
-                {isOverCost && (
-                  <div className="mt-2 flex items-start gap-2 bg-destructive/10 rounded-lg p-2.5">
-                    <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-foreground">
-                      ⚠️ Tu precio de venta está muy bajo. No estás cubriendo el costo de tu producto.
-                    </p>
+              </div>
+            )}
+          </motion.div>
+
+          {/* ── Sección 2: Desglose 3C ── */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+            <h3 className="text-sm font-semibold text-foreground mb-2">Desglose 3C del mes</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-green-700 dark:text-green-400 font-medium">Reposición 65%</p>
+                <p className="text-sm font-bold text-green-800 dark:text-green-300 mt-1">{formatCurrency(reposicion)}</p>
+              </div>
+              <div className="bg-card border border-border rounded-xl p-3 text-center bg-gradient-navy">
+                <p className="text-[10px] text-primary-foreground/70 font-medium">Ganancia 30%</p>
+                <p className="text-sm font-bold text-primary-foreground mt-1">{formatCurrency(ganancia)}</p>
+              </div>
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-orange-700 dark:text-orange-400 font-medium">Gastos 5%</p>
+                <p className="text-sm font-bold text-orange-800 dark:text-orange-300 mt-1">{formatCurrency(gastos)}</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ── Sección 3: 50-30-20 de ganancia ── */}
+          {ganancia > 0 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-xl p-4 shadow-card">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Tu ganancia: {formatCurrency(ganancia)}</h3>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-navy" />
+                    <span className="text-xs text-muted-foreground">50% Necesidades</span>
                   </div>
-                )}
-                <Button
-                  size="sm"
-                  onClick={() => saveWeek(w)}
-                  className="mt-3 w-full bg-navy text-primary-foreground h-8 text-xs rounded-lg"
+                  <span className="text-sm font-semibold">{formatCurrency(necesidades)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-gold" />
+                    <span className="text-xs text-muted-foreground">30% Deseos</span>
+                  </div>
+                  <span className="text-sm font-semibold">{formatCurrency(deseos)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-3 h-3 text-gold" />
+                    <span className="text-xs text-muted-foreground">20% Ahorro / Sueños</span>
+                  </div>
+                  <span className="text-sm font-bold text-navy">{formatCurrency(ahorro)}</span>
+                </div>
+              </div>
+              <div className="mt-3 bg-gold/10 rounded-lg p-2.5 text-center">
+                <p className="text-xs text-foreground">
+                  Este mes, <span className="font-bold text-navy">{formatCurrency(ahorro)}</span> fueron a tus sueños ⭐
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Sección 4: Semáforo por semana ── */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <h3 className="text-sm font-semibold text-foreground mb-2">Semáforo semanal</h3>
+            <div className="space-y-2">
+              {weeks.map((w) => {
+                const hasData = w.total_sales > 0;
+                const isHealthy = hasData && w.total_sales * 0.65 >= w.product_cost;
+                const isUnhealthy = hasData && w.total_sales * 0.65 < w.product_cost;
+
+                return (
+                  <div key={w.week} className={`flex items-center gap-3 rounded-xl p-3 border ${
+                    !hasData ? 'bg-muted/50 border-border' :
+                    isHealthy ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
+                    'bg-destructive/5 border-destructive/20'
+                  }`}>
+                    {!hasData ? (
+                      <MinusCircle className="w-5 h-5 text-muted-foreground shrink-0" />
+                    ) : isHealthy ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground">Semana {w.week}</p>
+                      {hasData ? (
+                        <p className="text-[10px] text-muted-foreground">
+                          Venta: {formatCurrency(w.total_sales)} · Costo: {formatCurrency(w.product_cost)}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground">Sin datos</p>
+                      )}
+                    </div>
+                    {isUnhealthy && (
+                      <p className="text-[9px] text-destructive font-medium shrink-0">Revisa tu precio</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+
+          {/* ── Sección 5: Editor de semanas ── */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <Button
+              variant="outline"
+              onClick={() => setShowWeekEditor(!showWeekEditor)}
+              className="w-full justify-between text-xs h-10 rounded-xl"
+            >
+              <span>✏️ Actualizar mis semanas</span>
+              {showWeekEditor ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+
+            <AnimatePresence>
+              {showWeekEditor && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="overflow-hidden"
                 >
-                  Guardar semana {w.week}
-                </Button>
-              </motion.div>
-            );
-          })}
-          <div className="bg-gradient-navy rounded-xl p-4 text-center">
-            <p className="text-xs text-primary-foreground/70">Total del mes</p>
-            <p className="text-2xl font-bold text-primary-foreground">{formatCurrency(monthTotal)}</p>
-          </div>
+                  <div className="space-y-3 pt-3">
+                    {weeks.map((w, i) => (
+                      <div key={w.week} className="bg-card rounded-xl p-4 shadow-card">
+                        <h4 className="text-xs font-semibold text-foreground mb-2">Semana {w.week}</h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-[10px]">Venta total</Label>
+                            <Input
+                              type="number"
+                              value={w.total_sales || ''}
+                              onChange={(e) => {
+                                const updated = [...weeks];
+                                updated[i] = { ...w, total_sales: Number(e.target.value) || 0 };
+                                setWeeks(updated);
+                              }}
+                              placeholder="$0"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">Costo producto</Label>
+                            <Input
+                              type="number"
+                              value={w.product_cost || ''}
+                              onChange={(e) => {
+                                const updated = [...weeks];
+                                updated[i] = { ...w, product_cost: Number(e.target.value) || 0 };
+                                setWeeks(updated);
+                              }}
+                              placeholder="$0"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => saveWeek(w)}
+                          className="mt-2 w-full bg-navy text-primary-foreground h-8 text-xs rounded-lg"
+                        >
+                          Guardar semana {w.week}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </TabsContent>
 
-        {/* Tab B: Historial */}
+        {/* ════════ Tab: Historial ════════ */}
         <TabsContent value="historial" className="mt-4 space-y-2">
           {purchases.length === 0 ? (
             <div className="text-center py-10">
