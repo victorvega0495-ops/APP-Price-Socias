@@ -37,7 +37,7 @@ function ProtectedRoutes() {
         <Route path="/clientas" element={<Clients />} />
         <Route path="/inventario" element={<Inventory />} />
         <Route path="/vender" element={<Sell />} />
-        <Route path="/mi-reto" element={<Challenge />} />
+        <Route path="/mis-metas" element={<Challenge />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </MobileLayout>

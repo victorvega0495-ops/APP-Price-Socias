@@ -19,7 +19,10 @@ export type Database = {
           created_at: string
           deadline: string
           id: string
+          monthly_sales_needed: number | null
           target_amount: number
+          target_name: string | null
+          target_type: string | null
           updated_at: string
           user_id: string
         }
@@ -27,7 +30,10 @@ export type Database = {
           created_at?: string
           deadline: string
           id?: string
+          monthly_sales_needed?: number | null
           target_amount?: number
+          target_name?: string | null
+          target_type?: string | null
           updated_at?: string
           user_id: string
         }
@@ -35,7 +41,10 @@ export type Database = {
           created_at?: string
           deadline?: string
           id?: string
+          monthly_sales_needed?: number | null
           target_amount?: number
+          target_name?: string | null
+          target_type?: string | null
           updated_at?: string
           user_id?: string
         }
