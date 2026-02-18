@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DollarSign, Users, Trophy, AlertTriangle, Clock, Target, Settings } from 'lucide-react';
+import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import ProgressRing from '@/components/ProgressRing';
+
 import { formatCurrency, daysRemaining, progressPercentage } from '@/lib/format';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -239,197 +239,160 @@ export default function Dashboard() {
         <p className="text-sm text-muted-foreground">Tu negocio te está esperando</p>
       </motion.div>
 
-      {/* Progress Card - Reto */}
+      {/* Mi Negocio — Unified Card */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-gradient-navy rounded-2xl p-5 shadow-elevated"
+        className="rounded-2xl shadow-elevated overflow-hidden"
       >
-        <div className="flex items-start justify-between mb-1">
-          <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider">Reto 0 a 10,000</p>
-          <button
-            onClick={() => setShowCalibrar(!showCalibrar)}
-            className="text-primary-foreground/50 hover:text-primary-foreground/80 text-[10px] flex items-center gap-0.5"
-          >
-            <Settings className="w-3 h-3" /> Calibrar
-          </button>
-        </div>
-
-        {/* Calibration panel */}
-        <AnimatePresence>
-          {showCalibrar && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
+        {/* UPPER SECTION — Monthly Business Dashboard */}
+        <div className="bg-gradient-navy p-5">
+          <div className="flex items-start justify-between mb-1">
+            <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider">
+              MI NEGOCIO — {monthNames[month]} {year}
+            </p>
+            <button
+              onClick={() => setShowCalibrar(!showCalibrar)}
+              className="text-primary-foreground/50 hover:text-primary-foreground/80 text-[10px] flex items-center gap-0.5"
             >
-              <div className="bg-primary-foreground/10 rounded-xl p-3 mb-3 space-y-2">
-                <div>
-                  <label className="text-[10px] text-primary-foreground/70">Precio promedio que pagas a Price ($)</label>
-                  <Input
-                    type="number"
-                    value={precioSocia || ''}
-                    onChange={(e) => handlePrecioChange(Number(e.target.value) || 0)}
-                    className="h-7 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground mt-0.5"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-primary-foreground/70">% que le subes a tus clientes</label>
-                  <Input
-                    type="number"
-                    value={pctGanancia || ''}
-                    onChange={(e) => handlePctChange(Number(e.target.value) || 0)}
-                    className="h-7 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground mt-0.5"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => setShowCalibrar(false)}
-                  className="w-full h-7 text-xs bg-gold text-navy font-semibold"
-                >
-                  Listo
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className="text-3xl font-bold text-primary-foreground mt-1">
-              {formatCurrency(data.totalSales)}
-            </p>
-            <p className="text-sm text-primary-foreground/60 mt-0.5">
-              de {formatCurrency(data.targetAmount)}
-            </p>
-            <p className="text-xs text-gold mt-1">~{paresVendidos} pares vendidos</p>
-            {data.deadline && (
-              <div className="flex items-center gap-1.5 mt-2">
-                <Clock className="w-3.5 h-3.5 text-gold" />
-                <span className="text-xs text-primary-foreground/80">
-                  {days} días restantes
-                </span>
-              </div>
-            )}
+              <Settings className="w-3 h-3" /> Calibrar
+            </button>
           </div>
-          <ProgressRing percentage={retoProgress} size={100} strokeWidth={8} />
-        </div>
 
-        {/* Pares/día needed */}
-        {paresNecesariosDia > 0 && totalRealMes < metaVenta && (
-          <p className="text-xs text-primary-foreground/70 mt-2">
-            Necesitas <span className="font-semibold text-gold">{paresNecesariosDia} pares/día</span> para llegar
-          </p>
-        )}
-
-        {/* Ritmo indicator */}
-        {paresVendidos > 0 && (
-          <div className={`mt-2 rounded-lg px-3 py-1.5 text-xs font-medium ${
-            ritmoActual >= paresNecesariosDia
-              ? 'bg-green-500/20 text-green-200'
-              : 'bg-yellow-500/20 text-yellow-200'
-          }`}>
-            {ritmoActual >= paresNecesariosDia
-              ? `✅ Vas a buen ritmo (${ritmoActual.toFixed(1)}/día)`
-              : `⚡ Ritmo actual: ${ritmoActual.toFixed(1)}/día`
-            }
-          </div>
-        )}
-
-        {!data.deadline && (
-          <Link
-            to="/mi-reto"
-            className="mt-3 block text-center text-sm text-gold font-semibold hover:underline"
-          >
-            Configura tu meta del Reto →
-          </Link>
-        )}
-      </motion.div>
-
-      {/* Smart Notes */}
-      {smartNotes.length > 0 && (
-        <div className="space-y-2">
+          {/* Calibration panel */}
           <AnimatePresence>
-            {smartNotes.slice(0, 2).map((note, i) => (
+            {showCalibrar && (
               <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className={`rounded-xl p-3 text-xs ${
-                  note.type === 'warn'
-                    ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800'
-                    : 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800'
-                }`}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
               >
-                {note.text}
+                <div className="bg-primary-foreground/10 rounded-xl p-3 mb-3 space-y-2">
+                  <div>
+                    <label className="text-[10px] text-primary-foreground/70">Precio promedio que pagas a Price ($)</label>
+                    <Input
+                      type="number"
+                      value={precioSocia || ''}
+                      onChange={(e) => handlePrecioChange(Number(e.target.value) || 0)}
+                      className="h-7 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-primary-foreground/70">% que le subes a tus clientes</label>
+                    <Input
+                      type="number"
+                      value={pctGanancia || ''}
+                      onChange={(e) => handlePctChange(Number(e.target.value) || 0)}
+                      className="h-7 text-xs bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground mt-0.5"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowCalibrar(false)}
+                    className="w-full h-7 text-xs bg-gold text-navy font-semibold"
+                  >
+                    Listo
+                  </Button>
+                </div>
               </motion.div>
-            ))}
+            )}
           </AnimatePresence>
-        </div>
-      )}
 
-      {/* Monthly Goal Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="bg-card rounded-2xl p-5 shadow-card"
-      >
-        {/* ... keep existing code (monthly goal card content) */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-navy" />
-            <h3 className="text-sm font-semibold text-foreground">Meta del mes — {monthNames[month]}</h3>
-          </div>
-        </div>
+          {/* Total vendido este mes */}
+          <p className="text-3xl font-bold text-primary-foreground mt-1">
+            {formatCurrency(monthTotalSales)}
+          </p>
+          <p className="text-xs text-primary-foreground/50 mt-0.5">vendido este mes</p>
 
-        {monthlyTarget > 0 ? (
-          <div className="space-y-3">
-            <div>
-              <div className="flex justify-between text-sm mb-1.5">
-                <span className="text-muted-foreground">Progreso</span>
-                <span className="font-semibold">{Math.round(goalProgress)}%</span>
+          {/* Progress bar toward monthly sales goal */}
+          {monthlyTarget > 0 && (
+            <div className="mt-3">
+              <div className="flex justify-between text-[10px] text-primary-foreground/60 mb-1">
+                <span>{Math.round(goalProgress)}%</span>
+                <span>Meta: {formatCurrency(monthlyTarget / 0.30)} en ventas</span>
               </div>
-              <Progress value={goalProgress} className="h-3 bg-muted [&>div]:bg-gradient-gold" />
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>{formatCurrency(monthTotalSales)}</span>
-                <span>{formatCurrency(monthlyTarget)}</span>
+              <Progress value={goalProgress} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold" />
+            </div>
+          )}
+
+          {/* Two columns: Ganancia acumulada / Meta de ganancia */}
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <div>
+              <p className="text-[10px] text-primary-foreground/50 uppercase tracking-wider">Ganancia acumulada</p>
+              <p className="text-lg font-bold text-gold">{formatCurrency(monthTotalSales * 0.30)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-primary-foreground/50 uppercase tracking-wider">Meta de ganancia</p>
+              {monthlyTarget > 0 ? (
+                <div className="flex items-center justify-end gap-1">
+                  <p className="text-lg font-bold text-primary-foreground">{formatCurrency(monthlyTarget)}</p>
+                  <button
+                    onClick={() => { setGoalInput(monthlyTarget); setGoalDialogOpen(true); }}
+                    className="text-primary-foreground/50 hover:text-primary-foreground/80"
+                  >
+                    <Settings className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setGoalDialogOpen(true)}
+                  className="text-sm text-gold font-semibold hover:underline mt-0.5"
+                >
+                  Configura tu meta →
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Daily needed */}
+          {monthlyTarget > 0 && monthTotalSales < monthlyTarget / 0.30 && (
+            <p className="text-xs text-primary-foreground/70 mt-3">
+              Necesitas vender <span className="font-semibold text-gold">{formatCurrency(dailyNeeded)}</span>/día para llegar
+            </p>
+          )}
+
+          {/* Pares vendidos & ritmo */}
+          <p className="text-xs text-gold mt-2">~{paresVendidos} pares vendidos</p>
+          {paresNecesariosDia > 0 && totalRealMes < metaVenta && (
+            <p className="text-xs text-primary-foreground/70 mt-1">
+              Necesitas <span className="font-semibold text-gold">{paresNecesariosDia} pares/día</span> para llegar
+            </p>
+          )}
+          {paresVendidos > 0 && (
+            <div className={`mt-2 rounded-lg px-3 py-1.5 text-xs font-medium ${
+              ritmoActual >= paresNecesariosDia
+                ? 'bg-green-500/20 text-green-200'
+                : 'bg-yellow-500/20 text-yellow-200'
+            }`}>
+              {ritmoActual >= paresNecesariosDia
+                ? `✅ Vas a buen ritmo (${ritmoActual.toFixed(1)}/día)`
+                : `⚡ Ritmo actual: ${ritmoActual.toFixed(1)}/día`
+              }
+            </div>
+          )}
+        </div>
+
+        {/* LOWER SECTION — Reto (only if challenge_goal exists) */}
+        {data.deadline && (
+          <div className="bg-navy-light/90 p-4 border-t border-primary-foreground/10">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="bg-gold/20 text-gold text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
+                🏆 Reto 0 a 10,000
+              </span>
+            </div>
+            <Progress value={progress} className="h-2 bg-primary-foreground/15 [&>div]:bg-gradient-gold mb-2" />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-primary-foreground/80">
+                <span className="font-semibold text-primary-foreground">{formatCurrency(data.totalSales)}</span> de {formatCurrency(data.targetAmount)} en ganancia
+              </p>
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-gold" />
+                <span className="text-xs text-primary-foreground/70">{days} días</span>
               </div>
             </div>
-
-            {monthTotalSales < monthlyTarget && (
-              <p className="text-xs text-muted-foreground text-center">
-                Necesitas vender <span className="font-semibold text-navy">{formatCurrency(dailyNeeded)}</span> por día para llegar
-              </p>
-            )}
-            {monthTotalSales >= monthlyTarget && (
-              <p className="text-xs text-center font-semibold text-accent-foreground">🎉 ¡Meta alcanzada!</p>
-            )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setGoalInput(monthlyTarget); setGoalDialogOpen(true); }}
-              className="w-full text-xs text-navy h-7"
-            >
-              Editar meta
-            </Button>
-          </div>
-        ) : (
-          <div className="text-center py-2">
-            <p className="text-sm text-muted-foreground mb-3">Configura cuánto quieres vender este mes</p>
-            <Button
-              onClick={() => setGoalDialogOpen(true)}
-              className="bg-navy text-primary-foreground"
-              size="sm"
-            >
-              <Target className="w-3.5 h-3.5 mr-1" /> Configurar meta
-            </Button>
           </div>
         )}
       </motion.div>
