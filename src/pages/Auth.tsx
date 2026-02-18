@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -55,10 +55,9 @@ export default function Auth() {
         >
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-gold shadow-gold mb-4">
-              <Sparkles className="w-8 h-8 text-accent-foreground" />
-            </div>
-            <h1 className="text-2xl font-bold text-primary-foreground">Mi Negocio Price</h1>
+            <img src="/logo-price.png" alt="Price Shoes" className="h-16 object-contain mx-auto mb-3" />
+            <p className="text-xs text-primary-foreground/60 font-medium uppercase tracking-wider">App para Socias</p>
+            <h1 className="text-2xl font-bold text-primary-foreground mt-2">Mi Negocio Price</h1>
             <p className="text-sm text-primary-foreground/70 mt-1">
               Tu herramienta para el Reto 0 a 10,000
             </p>

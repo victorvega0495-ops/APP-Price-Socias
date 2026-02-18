@@ -247,11 +247,14 @@ export default function Dashboard() {
   return (
     <div className="px-4 pt-6 pb-4 space-y-5">
       {/* Greeting */}
-      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
-        <h1 className="text-2xl font-bold text-foreground">
-          Hola {firstName} 👋
-        </h1>
-        <p className="text-sm text-muted-foreground">Tu negocio te está esperando</p>
+      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
+        <img src="/logo-price.png" alt="Price Shoes" className="h-8 object-contain" />
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">
+            Hola {firstName} 👋
+          </h1>
+          <p className="text-sm text-muted-foreground">Tu negocio te está esperando</p>
+        </div>
       </motion.div>
 
       {/* Mi Negocio — Unified Card */}
