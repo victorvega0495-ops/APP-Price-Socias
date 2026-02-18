@@ -280,10 +280,10 @@ export default function Dashboard() {
         style={{ background: 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)' }}
       >
         {/* UM Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <img src="/logo-um.png" alt="UM" style={{ height: '28px', objectFit: 'contain' }} />
-          <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.3)' }} />
-          <img src="/logo-price.png" alt="Price Shoes" style={{ height: '24px', objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.85 }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+          <img src="/logo-um.png" alt="Universidad de la Mujer" style={{ height: '36px', objectFit: 'contain' }} />
+          <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.35)' }} />
+          <img src="/logo-price.png" alt="Price Shoes" style={{ height: '32px', objectFit: 'contain', filter: 'brightness(10)', opacity: 0.9 }} />
         </div>
 
         {/* Profile row */}
