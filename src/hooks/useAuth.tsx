@@ -10,6 +10,7 @@ interface ProfileData {
   pct_reposicion: number;
   pct_ganancia: number;
   pct_ahorro: number;
+  avatar_url: string | null;
 }
 
 interface AuthContextType {
@@ -32,7 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('name, phone, partner_number, metodologia, pct_reposicion, pct_ganancia, pct_ahorro')
+      .select('name, phone, partner_number, metodologia, pct_reposicion, pct_ganancia, pct_ahorro, avatar_url')
       .eq('user_id', userId)
       .single();
     if (data) {
@@ -45,6 +46,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         pct_reposicion: Number(d.pct_reposicion ?? 65),
         pct_ganancia: Number(d.pct_ganancia ?? 30),
         pct_ahorro: Number(d.pct_ahorro ?? 20),
+        avatar_url: d.avatar_url ?? null,
       });
     }
   };

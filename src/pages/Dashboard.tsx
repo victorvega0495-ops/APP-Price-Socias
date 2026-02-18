@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -31,15 +31,16 @@ interface DashboardData {
 }
 
 const quickLinks = [
-  { to: '/finanzas', icon: DollarSign, label: 'Finanzas', color: 'bg-navy' },
-  { to: '/clientas', icon: Users, label: 'Mis Clientas', color: 'bg-navy-light' },
-  { to: '/mis-metas', icon: Trophy, label: 'Metas', color: 'bg-gold' },
-  { to: '/tips', icon: Lightbulb, label: 'Tips', color: 'bg-gold' },
+  { to: '/finanzas', icon: DollarSign, label: 'Finanzas' },
+  { to: '/clientas', icon: Users, label: 'Mis Clientas' },
+  { to: '/mis-metas', icon: Trophy, label: 'Metas' },
+  { to: '/tips', icon: Lightbulb, label: 'Tips' },
 ];
 
 export default function Dashboard() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [data, setData] = useState<DashboardData>({
     totalSales: 0, targetAmount: 10000, deadline: '', overdueCredits: 0, inactiveClients: 0,
   });
@@ -64,7 +65,6 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      // All active challenge goals (deadline >= today)
       const todayStr = now.toISOString().split('T')[0];
       const { data: goalsData } = await supabase
         .from('challenge_goals')
@@ -79,17 +79,14 @@ export default function Dashboard() {
       }));
       setActiveGoals(goals);
 
-      // Use first goal for backward compat
       const goal = goals.length > 0 ? goals[0] : null;
 
-      // All-time sales for reto
       const { data: finances } = await supabase
         .from('weekly_finances')
         .select('total_sales')
         .eq('user_id', user.id);
       const totalSales = finances?.reduce((sum, f) => sum + Number(f.total_sales), 0) || 0;
 
-      // Monthly sales from weekly_finances
       const { data: monthFinances } = await supabase
         .from('weekly_finances')
         .select('total_sales')
@@ -99,7 +96,6 @@ export default function Dashboard() {
       const mSales = monthFinances?.reduce((sum, f) => sum + Number(f.total_sales), 0) || 0;
       setMonthTotalSales(mSales);
 
-      // Monthly goal
       const { data: goalData } = await supabase
         .from('monthly_goals')
         .select('target_income')
@@ -112,7 +108,6 @@ export default function Dashboard() {
         setGoalInput(Number(goalData.target_income));
       }
 
-      // Purchases this month — with cost_price for real margin
       const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
       const { data: purchasesData } = await supabase
         .from('purchases')
@@ -122,14 +117,12 @@ export default function Dashboard() {
       const realMes = purchasesData?.reduce((s, p) => s + Number(p.amount), 0) || 0;
       setTotalRealMes(realMes);
 
-      // Calculate real average margin
       const ventasConCosto = purchasesData?.filter(p => p.cost_price && Number(p.cost_price) > 0) || [];
       const avgMargen = ventasConCosto.length > 0
         ? ventasConCosto.reduce((s, p) => s + (Number(p.amount) - Number(p.cost_price)) / Number(p.amount), 0) / ventasConCosto.length
         : pctGanancia;
       setMargenPromedio(avgMargen);
 
-      // Days since last purchase
       if (purchasesData && purchasesData.length > 0) {
         const sorted = [...purchasesData].sort((a, b) => b.purchase_date.localeCompare(a.purchase_date));
         const lastDate = new Date(sorted[0].purchase_date + 'T12:00:00');
@@ -139,7 +132,6 @@ export default function Dashboard() {
         setLastPurchaseDaysAgo(999);
       }
 
-      // Pending credit amount
       const { data: pendingCredits } = await supabase
         .from('purchases')
         .select('amount, credit_paid_amount')
@@ -149,7 +141,6 @@ export default function Dashboard() {
       const pendingTotal = pendingCredits?.reduce((s, p) => s + Number(p.amount) - Number(p.credit_paid_amount || 0), 0) || 0;
       setMontoPendienteCredito(pendingTotal);
 
-      // Overdue credits (>15 days)
       const fifteenDaysAgo = new Date();
       fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
       const { count: overdueCredits } = await supabase
@@ -160,7 +151,6 @@ export default function Dashboard() {
         .eq('credit_paid', false)
         .lt('credit_due_date', fifteenDaysAgo.toISOString().split('T')[0]);
 
-      // Inactive clients (>30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const { count: inactiveClients } = await supabase
@@ -198,7 +188,6 @@ export default function Dashboard() {
   const goalProgress = metaVentas > 0 ? Math.min(100, (totalRealMes / metaVentas) * 100) : 0;
   const gananciaAcumulada = totalRealMes * margenPromedio;
 
-  // Compute progress for each active goal and sort by highest progress
   const goalsWithProgress = activeGoals.map(g => {
     const pct = g.monthly_sales_needed && g.monthly_sales_needed > 0
       ? Math.min(100, (totalRealMes / g.monthly_sales_needed) * 100)
@@ -220,7 +209,6 @@ export default function Dashboard() {
     }
   };
 
-  // Smart notes (max 2)
   const smartNotes: { text: string; type: 'warn' | 'success' }[] = [];
   if (data.overdueCredits > 0 && montoPendienteCredito > 0) {
     const extraPct = metaVentas > 0 ? Math.round((montoPendienteCredito / metaVentas) * 100) : 0;
@@ -243,80 +231,142 @@ export default function Dashboard() {
   }
 
   const monthNames = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const monthAbbr = monthNames[month]?.substring(0, 3).toUpperCase() || '';
+
+  // Avatar initials
+  const initials = (profile?.name || 'S')
+    .split(' ')
+    .map(w => w[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
 
   return (
-    <div className="px-4 pt-6 pb-4 space-y-5">
-      {/* Greeting */}
-      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
-        <img src="/logo-price.png" alt="Price Shoes" className="h-8 object-contain" />
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Hola {firstName} 👋
-          </h1>
-          <p className="text-sm text-muted-foreground">Tu negocio te está esperando</p>
-        </div>
-      </motion.div>
-
-      {/* Mi Negocio — Unified Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="rounded-2xl shadow-elevated overflow-hidden"
+    <div className="pb-4">
+      {/* ===== PURPLE GRADIENT HEADER ===== */}
+      <div
+        className="px-5 pt-5 pb-6 space-y-4"
+        style={{ background: 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)' }}
       >
-        {/* UPPER SECTION — Monthly Business Dashboard */}
-        <div className="bg-gradient-navy p-5">
-          <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider mb-1">
-            MI NEGOCIO — {monthNames[month]} {year}
-          </p>
+        {/* Badge UM */}
+        <div className="flex items-center gap-2">
+          <img src="/logo-um.png" alt="Universidad de la Mujer" className="h-5 object-contain" />
+          <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Universidad de la Mujer · Price Shoes
+          </span>
+        </div>
 
-          {/* Total vendido este mes */}
-          <p className="text-3xl font-bold text-primary-foreground mt-1">
+        {/* Profile row */}
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/perfil')} className="shrink-0">
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={firstName}
+                className="w-14 h-14 rounded-full object-cover"
+                style={{ border: '3px solid rgba(255,255,255,0.3)' }}
+              />
+            ) : (
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, #C06DD6, #9B59B6)',
+                  border: '3px solid rgba(255,255,255,0.3)',
+                }}
+              >
+                <span className="text-white font-bold text-lg" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                  {initials}
+                </span>
+              </div>
+            )}
+          </button>
+          <div>
+            <h1 className="text-[22px] font-bold text-white" style={{ fontFamily: 'Nunito, sans-serif' }}>
+              Hola, {firstName} 👋
+            </h1>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Tu negocio te está esperando
+            </p>
+          </div>
+        </div>
+
+        {/* Glassmorphism business card */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="p-4"
+          style={{
+            background: 'rgba(255,255,255,0.12)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '20px',
+          }}
+        >
+          <p style={{ fontSize: '9px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em' }}>
+            MI NEGOCIO — {monthAbbr} {year}
+          </p>
+          <p className="text-white mt-1" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '36px', lineHeight: 1.1 }}>
             {formatCurrency(totalRealMes)}
           </p>
-          <p className="text-xs text-primary-foreground/50 mt-0.5">
-            {totalRealMes === 0 && monthlyTarget > 0
-              ? '¡Registra tu primera venta de hoy! 💪'
-              : 'vendido este mes'}
-          </p>
 
-          {/* Progress bar toward monthly sales goal */}
+          {/* Progress bar */}
           {primaryGoal && primaryGoal.monthly_sales_needed && primaryGoal.monthly_sales_needed > 0 ? (
             <div className="mt-3">
-              <div className="flex justify-between text-[10px] text-primary-foreground/60 mb-1">
+              <div className="flex justify-between mb-1" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
                 <span>{Math.round(Math.min(100, (totalRealMes / primaryGoal.monthly_sales_needed) * 100))}%</span>
-                <span>Meta: {formatCurrency(primaryGoal.monthly_sales_needed)} en ventas</span>
+                <span>Meta: {formatCurrency(primaryGoal.monthly_sales_needed)}</span>
               </div>
-              <Progress value={Math.min(100, (totalRealMes / primaryGoal.monthly_sales_needed) * 100)} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold shadow-gold" />
+              <div className="w-full h-2.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min(100, (totalRealMes / primaryGoal.monthly_sales_needed) * 100)}%`,
+                    background: 'linear-gradient(90deg, #C06DD6, #E8A5F0)',
+                    boxShadow: '0 0 12px rgba(192,109,214,0.5)',
+                  }}
+                />
+              </div>
             </div>
           ) : monthlyTarget > 0 ? (
             <div className="mt-3">
-              <div className="flex justify-between text-[10px] text-primary-foreground/60 mb-1">
+              <div className="flex justify-between mb-1" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
                 <span>{Math.round(goalProgress)}%</span>
-                <span>Meta: {formatCurrency(metaVentas)} en ventas</span>
+                <span>Meta: {formatCurrency(metaVentas)}</span>
               </div>
-              <Progress value={goalProgress} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold shadow-gold" />
+              <div className="w-full h-2.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${goalProgress}%`,
+                    background: 'linear-gradient(90deg, #C06DD6, #E8A5F0)',
+                    boxShadow: '0 0 12px rgba(192,109,214,0.5)',
+                  }}
+                />
+              </div>
             </div>
           ) : totalRealMes === 0 ? (
-            <div className="mt-3 text-sm text-primary-foreground/70 text-center">
-              ¡Bienvenida! <Link to="/mis-metas" className="text-gold font-semibold hover:underline">Configura tu meta</Link> y registra tu primera venta para empezar 🚀
+            <div className="mt-3 text-sm text-center" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              ¡Bienvenida! <Link to="/mis-metas" className="font-semibold underline" style={{ color: '#E8A5F0' }}>Configura tu meta</Link> 🚀
             </div>
           ) : (
-            <Link to="/mis-metas" className="block mt-3 text-sm text-gold font-semibold hover:underline">
+            <Link to="/mis-metas" className="block mt-3 text-sm font-semibold underline" style={{ color: '#E8A5F0' }}>
               Configura tu meta →
             </Link>
           )}
 
-          {/* Compact single-line stats */}
-          <p className="text-xs text-primary-foreground/60 mt-3 flex items-center gap-1">
-            💰 Ganancia: <span className="font-semibold text-gold">{formatCurrency(gananciaAcumulada)}</span>
+          {/* Stats line */}
+          <p className="mt-3 flex items-center gap-1 flex-wrap" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)' }}>
+            💜 Ganancia: <span className="font-semibold" style={{ color: '#E8A5F0' }}>{formatCurrency(gananciaAcumulada)}</span>
             {monthlyTarget > 0 && (
               <>
                 <span className="mx-1">·</span>
-                🎯 Meta: <span className="font-semibold text-primary-foreground">{formatCurrency(monthlyTarget)}</span>
+                🎯 Meta: <span className="font-semibold text-white">{formatCurrency(monthlyTarget)}</span>
                 <button
                   onClick={() => { setGoalInput(monthlyTarget); setGoalDialogOpen(true); }}
-                  className="text-primary-foreground/40 hover:text-primary-foreground/70 ml-0.5"
+                  className="ml-0.5"
+                  style={{ color: 'rgba(255,255,255,0.35)' }}
                 >
                   <Settings className="w-2.5 h-2.5" />
                 </button>
@@ -327,45 +377,56 @@ export default function Dashboard() {
                 <span className="mx-1">·</span>
                 <button
                   onClick={() => setGoalDialogOpen(true)}
-                  className="text-gold font-semibold hover:underline"
+                  className="font-semibold underline"
+                  style={{ color: '#E8A5F0' }}
                 >
                   Configura meta →
                 </button>
               </>
             )}
           </p>
-        </div>
+        </motion.div>
+      </div>
 
-        {/* LOWER SECTION — Active goals */}
-        {activeGoals.length > 0 ? (
-          <div className="bg-navy-light/90 p-4 border-t border-primary-foreground/10">
-            {/* Primary goal */}
+      {/* ===== BODY — #F5F5F7 ===== */}
+      <div className="px-4 pt-5 space-y-5" style={{ background: '#F5F5F7', minHeight: 'calc(100vh - 300px)' }}>
+
+        {/* Active goals section */}
+        {activeGoals.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-[18px] p-4 space-y-3"
+            style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}
+          >
             {primaryGoal && (
               <>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="bg-gold/20 text-gold text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: 'rgba(192,109,214,0.25)', color: '#E8A5F0' }}>
                     {goalEmoji(primaryGoal.target_type)} {primaryGoal.target_name || 'Mi Meta'}
                   </span>
                 </div>
-                <Progress value={primaryGoal.pct} className="h-2 bg-primary-foreground/15 [&>div]:bg-gradient-gold mb-2" />
+                <div className="w-full h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${primaryGoal.pct}%`, background: 'linear-gradient(90deg, #C06DD6, #E8A5F0)' }} />
+                </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-primary-foreground/80">
-                    <span className="font-semibold text-primary-foreground">{formatCurrency(data.totalSales)}</span> de {formatCurrency(primaryGoal.target_amount)}
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                    <span className="font-semibold text-white">{formatCurrency(data.totalSales)}</span> de {formatCurrency(primaryGoal.target_amount)}
                   </p>
                   <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-gold" />
-                    <span className="text-xs text-primary-foreground/70">{primaryGoal.daysLeft} días</span>
+                    <Clock className="w-3 h-3" style={{ color: '#E8A5F0' }} />
+                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>{primaryGoal.daysLeft} días</span>
                   </div>
                 </div>
               </>
             )}
 
-            {/* Other goals collapsible */}
             {otherGoals.length > 0 && (
               <>
                 <button
                   onClick={() => setShowOtherGoals(!showOtherGoals)}
-                  className="flex items-center gap-1 text-[11px] text-primary-foreground/60 hover:text-primary-foreground/80 mt-3"
+                  className="flex items-center gap-1 text-[11px] mt-1"
+                  style={{ color: 'rgba(255,255,255,0.6)' }}
                 >
                   {showOtherGoals ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                   {showOtherGoals ? 'Ocultar' : `+ Ver mis otras metas (${otherGoals.length})`}
@@ -376,16 +437,18 @@ export default function Dashboard() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden mt-2 space-y-2"
+                      className="overflow-hidden space-y-2"
                     >
                       {otherGoals.map(g => (
                         <div key={g.id} className="rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-[11px] text-primary-foreground/80">{goalEmoji(g.target_type)} {g.target_name || 'Meta'}</span>
-                            <span className="text-[10px] text-primary-foreground/50">{g.daysLeft} días</span>
+                            <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.8)' }}>{goalEmoji(g.target_type)} {g.target_name || 'Meta'}</span>
+                            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>{g.daysLeft} días</span>
                           </div>
-                          <Progress value={g.pct} className="h-1.5 bg-primary-foreground/10 [&>div]:bg-gold/70 mb-1" />
-                          <p className="text-[10px] text-primary-foreground/50">
+                          <div className="w-full h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                            <div className="h-full rounded-full" style={{ width: `${g.pct}%`, background: 'rgba(192,109,214,0.7)' }} />
+                          </div>
+                          <p className="text-[10px] mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
                             {formatCurrency(data.totalSales)} de {formatCurrency(g.target_amount)} · {Math.round(g.pct)}%
                           </p>
                         </div>
@@ -395,86 +458,100 @@ export default function Dashboard() {
                 </AnimatePresence>
               </>
             )}
-          </div>
-        ) : (
-          <div className="bg-navy-light/90 p-4 border-t border-primary-foreground/10 text-center">
-            <Link to="/mis-metas" className="text-sm text-gold font-semibold hover:underline">
-              Configura tu primera meta →
-            </Link>
+          </motion.div>
+        )}
+
+        {/* Smart Notes */}
+        {smartNotes.length > 0 && (
+          <div className="space-y-2">
+            {smartNotes.map((note, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.05 * i }}
+                className="bg-white rounded-xl p-3 text-sm"
+                style={{
+                  borderLeft: '4px solid #C06DD6',
+                  border: '1px solid #E8D5F5',
+                  borderLeftWidth: '4px',
+                  borderLeftColor: '#C06DD6',
+                  color: '#2D1B69',
+                }}
+              >
+                {note.text}
+              </motion.div>
+            ))}
           </div>
         )}
-      </motion.div>
 
-      {/* Smart Notes */}
-      {smartNotes.length > 0 && (
-        <div className="space-y-2">
-          {smartNotes.map((note, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.05 * i }}
-              className={`rounded-xl p-3 text-sm ${
-                note.type === 'warn' ? 'bg-gold/10 text-foreground' : 'bg-green-500/10 text-foreground'
-              }`}
-            >
-              {note.text}
-            </motion.div>
-          ))}
+        {/* Alerts */}
+        {(data.overdueCredits > 0 || data.inactiveClients > 0) && (
+          <div className="space-y-2">
+            {data.overdueCredits > 0 && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-3 bg-destructive/10 rounded-xl p-3"
+              >
+                <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
+                <p className="text-sm text-foreground">
+                  <strong>{data.overdueCredits}</strong> cuenta{data.overdueCredits > 1 ? 's' : ''} por cobrar vencida{data.overdueCredits > 1 ? 's' : ''}
+                </p>
+              </motion.div>
+            )}
+            {data.inactiveClients > 0 && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.05 }}
+                className="flex items-center gap-3 rounded-xl p-3"
+                style={{ background: 'rgba(192,109,214,0.08)' }}
+              >
+                <Users className="w-5 h-5 flex-shrink-0" style={{ color: '#6B2FA0' }} />
+                <p className="text-sm" style={{ color: '#2D1B69' }}>
+                  <strong>{data.inactiveClients}</strong> clienta{data.inactiveClients > 1 ? 's' : ''} sin comprar en +30 días
+                </p>
+              </motion.div>
+            )}
+          </div>
+        )}
+
+        {/* Quick Links */}
+        <div>
+          <p className="text-[9px] uppercase tracking-widest mb-2 font-semibold" style={{ color: '#999' }}>
+            ACCESOS RÁPIDOS
+          </p>
+          <div className="grid grid-cols-4 gap-3">
+            {quickLinks.map((link, i) => (
+              <motion.div
+                key={link.to}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + i * 0.05 }}
+              >
+                <Link
+                  to={link.to}
+                  className="flex flex-col items-center justify-center gap-2 bg-white rounded-2xl p-4"
+                  style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: '#F0E6F6' }}>
+                    <link.icon className="w-5 h-5" style={{ color: '#6B2FA0' }} />
+                  </div>
+                  <span className="font-bold" style={{ fontSize: '10px', color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>
+                    {link.label}
+                  </span>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
         </div>
-      )}
 
-      {/* Alerts */}
-      {(data.overdueCredits > 0 || data.inactiveClients > 0) && (
-        <div className="space-y-2">
-          {data.overdueCredits > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3 bg-destructive/10 rounded-xl p-3"
-            >
-              <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
-              <p className="text-sm text-foreground">
-                <strong>{data.overdueCredits}</strong> cuenta{data.overdueCredits > 1 ? 's' : ''} por cobrar vencida{data.overdueCredits > 1 ? 's' : ''}
-              </p>
-            </motion.div>
-          )}
-          {data.inactiveClients > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.05 }}
-              className="flex items-center gap-3 bg-gold/10 rounded-xl p-3"
-            >
-              <Users className="w-5 h-5 text-gold-dark flex-shrink-0" />
-              <p className="text-sm text-foreground">
-                <strong>{data.inactiveClients}</strong> clienta{data.inactiveClients > 1 ? 's' : ''} sin comprar en +30 días
-              </p>
-            </motion.div>
-          )}
+        {/* Price Shoes footer */}
+        <div className="flex flex-col items-center gap-1 pt-4 pb-8">
+          <span className="text-[10px]" style={{ color: '#999' }}>Herramienta oficial de</span>
+          <img src="/logo-price.png" alt="Price Shoes" className="h-7 object-contain opacity-60" />
         </div>
-      )}
-
-      {/* Quick Links */}
-      <div className="grid grid-cols-4 gap-3">
-        {quickLinks.map((link, i) => (
-          <motion.div
-            key={link.to}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 + i * 0.05 }}
-          >
-            <Link
-              to={link.to}
-              className="flex flex-col items-center justify-center gap-2 bg-card rounded-2xl p-5 shadow-card hover:shadow-elevated transition-shadow"
-            >
-              <div className={`w-11 h-11 rounded-xl ${link.color} flex items-center justify-center`}>
-                <link.icon className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-sm font-medium text-foreground">{link.label}</span>
-            </Link>
-          </motion.div>
-        ))}
       </div>
 
       {/* Goal Dialog */}
@@ -497,7 +574,7 @@ export default function Dashboard() {
                 />
               </div>
             </div>
-            <Button onClick={saveMonthlyGoal} className="w-full bg-navy text-primary-foreground">
+            <Button onClick={saveMonthlyGoal} className="w-full" style={{ background: '#2D1B69', color: 'white' }}>
               Guardar meta
             </Button>
           </div>

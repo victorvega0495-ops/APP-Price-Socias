@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, DollarSign, Users, ShoppingBag, Target, Plus, UserCircle } from 'lucide-react';
+import { Home, DollarSign, Users, ShoppingBag, Target, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -23,12 +23,6 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Top bar with profile icon */}
-      <div className="max-w-lg mx-auto flex justify-end px-4 pt-3">
-        <NavLink to="/perfil" className="text-muted-foreground hover:text-foreground transition-colors">
-          <UserCircle className="w-6 h-6" />
-        </NavLink>
-      </div>
       <main className="max-w-lg mx-auto">{children}</main>
 
       {/* FAB */}
@@ -40,19 +34,20 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             className="flex items-center gap-2 bg-card shadow-elevated rounded-full pl-4 pr-3 py-2.5 text-sm font-medium text-foreground animate-slide-up"
           >
             {action.label}
-            <action.icon className="w-4 h-4 text-navy" />
+            <action.icon className="w-4 h-4" style={{ color: '#2D1B69' }} />
           </button>
         ))}
         <button
           onClick={() => setFabOpen(!fabOpen)}
-          className={`w-14 h-14 rounded-full bg-gradient-gold shadow-gold flex items-center justify-center transition-transform duration-200 ${fabOpen ? 'rotate-45' : ''}`}
+          className={`w-14 h-14 rounded-full shadow-gold flex items-center justify-center transition-transform duration-200 ${fabOpen ? 'rotate-45' : ''}`}
+          style={{ background: 'linear-gradient(135deg, #C06DD6, #9B59B6)' }}
         >
-          <Plus className="w-6 h-6 text-accent-foreground" />
+          <Plus className="w-6 h-6 text-white" />
         </button>
       </div>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-elevated z-40">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-elevated z-40">
         <div className="max-w-lg mx-auto flex justify-around py-2">
           {tabs.map((tab) => {
             const isActive = location.pathname === tab.to || 
@@ -64,13 +59,17 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
                 className="flex flex-col items-center gap-0.5 px-2 py-1 min-w-0"
               >
                 <tab.icon
-                  className={`w-5 h-5 transition-colors ${isActive ? 'text-navy' : 'text-muted-foreground'}`}
+                  className="w-5 h-5 transition-colors"
+                  style={{ color: isActive ? '#6B2FA0' : undefined }}
                 />
-                <span className={`text-[10px] font-medium transition-colors ${isActive ? 'text-navy' : 'text-muted-foreground'}`}>
+                <span
+                  className={`text-[10px] font-medium transition-colors ${!isActive ? 'text-muted-foreground' : ''}`}
+                  style={isActive ? { color: '#6B2FA0' } : undefined}
+                >
                   {tab.label}
                 </span>
                 {isActive && (
-                  <div className="w-1 h-1 rounded-full bg-gold mt-0.5" />
+                  <div className="w-1 h-1 rounded-full mt-0.5" style={{ background: '#C06DD6' }} />
                 )}
               </NavLink>
             );
