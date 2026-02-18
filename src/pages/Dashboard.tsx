@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +12,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+
+interface ChallengeGoal {
+  id: string;
+  target_amount: number;
+  deadline: string;
+  monthly_sales_needed: number | null;
+  target_name: string | null;
+  target_type: string | null;
+}
 
 interface DashboardData {
   totalSales: number;
@@ -40,7 +49,8 @@ export default function Dashboard() {
   const month = now.getMonth() + 1;
   const [monthlyTarget, setMonthlyTarget] = useState(0);
   const [monthTotalSales, setMonthTotalSales] = useState(0);
-  const [challengeMonthlySales, setChallengeMonthlySales] = useState<number | null>(null);
+  const [activeGoals, setActiveGoals] = useState<ChallengeGoal[]>([]);
+  const [showOtherGoals, setShowOtherGoals] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [goalInput, setGoalInput] = useState(0);
 
@@ -54,15 +64,23 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      // Challenge goal
-      const { data: goal } = await supabase
+      // All active challenge goals (deadline >= today)
+      const todayStr = now.toISOString().split('T')[0];
+      const { data: goalsData } = await supabase
         .from('challenge_goals')
-        .select('target_amount, deadline, monthly_sales_needed')
+        .select('id, target_amount, deadline, monthly_sales_needed, target_name, target_type')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setChallengeMonthlySales(goal?.monthly_sales_needed ? Number(goal.monthly_sales_needed) : null);
+        .gte('deadline', todayStr)
+        .order('created_at', { ascending: false });
+      const goals: ChallengeGoal[] = (goalsData || []).map(g => ({
+        ...g,
+        target_amount: Number(g.target_amount),
+        monthly_sales_needed: g.monthly_sales_needed ? Number(g.monthly_sales_needed) : null,
+      }));
+      setActiveGoals(goals);
+
+      // Use first goal for backward compat
+      const goal = goals.length > 0 ? goals[0] : null;
 
       // All-time sales for reto
       const { data: finances } = await supabase
@@ -180,12 +198,27 @@ export default function Dashboard() {
   const goalProgress = metaVentas > 0 ? Math.min(100, (totalRealMes / metaVentas) * 100) : 0;
   const gananciaAcumulada = totalRealMes * margenPromedio;
 
-  const daysLeftInMonth = (() => {
-    const lastDay = new Date(year, month, 0).getDate();
-    const today = now.getDate();
-    return Math.max(1, lastDay - today);
-  })();
-  const dailyNeeded = metaVentas > 0 ? Math.max(0, (metaVentas - totalRealMes) / daysLeftInMonth) : 0;
+  // Compute progress for each active goal and sort by highest progress
+  const goalsWithProgress = activeGoals.map(g => {
+    const pct = g.monthly_sales_needed && g.monthly_sales_needed > 0
+      ? Math.min(100, (totalRealMes / g.monthly_sales_needed) * 100)
+      : progressPercentage(data.totalSales, g.target_amount);
+    const daysLeft = daysRemaining(g.deadline);
+    return { ...g, pct, daysLeft };
+  }).sort((a, b) => b.pct - a.pct);
+
+  const primaryGoal = goalsWithProgress.length > 0 ? goalsWithProgress[0] : null;
+  const otherGoals = goalsWithProgress.slice(1);
+
+  const goalEmoji = (type: string | null) => {
+    switch (type) {
+      case 'coche': return '🚗';
+      case 'casa': return '🏠';
+      case 'vacaciones': return '✈️';
+      case 'capricho': return '🎁';
+      default: return '🏆';
+    }
+  };
 
   // Smart notes (max 2)
   const smartNotes: { text: string; type: 'warn' | 'success' }[] = [];
@@ -245,13 +278,13 @@ export default function Dashboard() {
           </p>
 
           {/* Progress bar toward monthly sales goal */}
-          {challengeMonthlySales !== null && challengeMonthlySales > 0 ? (
+          {primaryGoal && primaryGoal.monthly_sales_needed && primaryGoal.monthly_sales_needed > 0 ? (
             <div className="mt-3">
               <div className="flex justify-between text-[10px] text-primary-foreground/60 mb-1">
-                <span>{Math.round(Math.min(100, (totalRealMes / challengeMonthlySales) * 100))}%</span>
-                <span>Meta: {formatCurrency(challengeMonthlySales)} en ventas</span>
+                <span>{Math.round(Math.min(100, (totalRealMes / primaryGoal.monthly_sales_needed) * 100))}%</span>
+                <span>Meta: {formatCurrency(primaryGoal.monthly_sales_needed)} en ventas</span>
               </div>
-              <Progress value={Math.min(100, (totalRealMes / challengeMonthlySales) * 100)} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold shadow-gold" />
+              <Progress value={Math.min(100, (totalRealMes / primaryGoal.monthly_sales_needed) * 100)} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold shadow-gold" />
             </div>
           ) : monthlyTarget > 0 ? (
             <div className="mt-3">
@@ -271,61 +304,100 @@ export default function Dashboard() {
             </Link>
           )}
 
-          {/* Two stat-boxes */}
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-[10px] text-primary-foreground/50 uppercase tracking-wider">Ganancia acumulada</p>
-              <p className="text-lg font-bold text-gold">{formatCurrency(gananciaAcumulada)}</p>
-            </div>
-            <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-[10px] text-primary-foreground/50 uppercase tracking-wider">Meta de ganancia</p>
-              {monthlyTarget > 0 ? (
-                <div className="flex items-center gap-1">
-                  <p className="text-lg font-bold text-primary-foreground">{formatCurrency(monthlyTarget)}</p>
-                  <button
-                    onClick={() => { setGoalInput(monthlyTarget); setGoalDialogOpen(true); }}
-                    className="text-primary-foreground/50 hover:text-primary-foreground/80"
-                  >
-                    <Settings className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
+          {/* Compact single-line stats */}
+          <p className="text-xs text-primary-foreground/60 mt-3 flex items-center gap-1">
+            💰 Ganancia: <span className="font-semibold text-gold">{formatCurrency(gananciaAcumulada)}</span>
+            {monthlyTarget > 0 && (
+              <>
+                <span className="mx-1">·</span>
+                🎯 Meta: <span className="font-semibold text-primary-foreground">{formatCurrency(monthlyTarget)}</span>
+                <button
+                  onClick={() => { setGoalInput(monthlyTarget); setGoalDialogOpen(true); }}
+                  className="text-primary-foreground/40 hover:text-primary-foreground/70 ml-0.5"
+                >
+                  <Settings className="w-2.5 h-2.5" />
+                </button>
+              </>
+            )}
+            {!monthlyTarget && (
+              <>
+                <span className="mx-1">·</span>
                 <button
                   onClick={() => setGoalDialogOpen(true)}
-                  className="text-sm text-gold font-semibold hover:underline mt-0.5"
+                  className="text-gold font-semibold hover:underline"
                 >
-                  Configura tu meta →
+                  Configura meta →
                 </button>
-              )}
-            </div>
-          </div>
-
-          {/* Daily needed */}
-          {monthlyTarget > 0 && totalRealMes < metaVentas && (
-            <p className="text-xs text-primary-foreground/70 mt-3">
-              Necesitas vender <span className="font-semibold text-gold">{formatCurrency(dailyNeeded)}</span>/día para llegar
-            </p>
-          )}
+              </>
+            )}
+          </p>
         </div>
 
-        {/* LOWER SECTION — Reto (only if challenge_goal exists) */}
-        {data.deadline && (
+        {/* LOWER SECTION — Active goals */}
+        {activeGoals.length > 0 ? (
           <div className="bg-navy-light/90 p-4 border-t border-primary-foreground/10">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="bg-gold/20 text-gold text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
-                🏆 Reto 0 a 10,000
-              </span>
-            </div>
-            <Progress value={progress} className="h-2 bg-primary-foreground/15 [&>div]:bg-gradient-gold mb-2" />
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-primary-foreground/80">
-                <span className="font-semibold text-primary-foreground">{formatCurrency(data.totalSales)}</span> de {formatCurrency(data.targetAmount)} en ganancia
-              </p>
-              <div className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-gold" />
-                <span className="text-xs text-primary-foreground/70">{days} días</span>
-              </div>
-            </div>
+            {/* Primary goal */}
+            {primaryGoal && (
+              <>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-gold/20 text-gold text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
+                    {goalEmoji(primaryGoal.target_type)} {primaryGoal.target_name || 'Mi Meta'}
+                  </span>
+                </div>
+                <Progress value={primaryGoal.pct} className="h-2 bg-primary-foreground/15 [&>div]:bg-gradient-gold mb-2" />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-primary-foreground/80">
+                    <span className="font-semibold text-primary-foreground">{formatCurrency(data.totalSales)}</span> de {formatCurrency(primaryGoal.target_amount)}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-gold" />
+                    <span className="text-xs text-primary-foreground/70">{primaryGoal.daysLeft} días</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Other goals collapsible */}
+            {otherGoals.length > 0 && (
+              <>
+                <button
+                  onClick={() => setShowOtherGoals(!showOtherGoals)}
+                  className="flex items-center gap-1 text-[11px] text-primary-foreground/60 hover:text-primary-foreground/80 mt-3"
+                >
+                  {showOtherGoals ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  {showOtherGoals ? 'Ocultar' : `+ Ver mis otras metas (${otherGoals.length})`}
+                </button>
+                <AnimatePresence>
+                  {showOtherGoals && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden mt-2 space-y-2"
+                    >
+                      {otherGoals.map(g => (
+                        <div key={g.id} className="rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] text-primary-foreground/80">{goalEmoji(g.target_type)} {g.target_name || 'Meta'}</span>
+                            <span className="text-[10px] text-primary-foreground/50">{g.daysLeft} días</span>
+                          </div>
+                          <Progress value={g.pct} className="h-1.5 bg-primary-foreground/10 [&>div]:bg-gold/70 mb-1" />
+                          <p className="text-[10px] text-primary-foreground/50">
+                            {formatCurrency(data.totalSales)} de {formatCurrency(g.target_amount)} · {Math.round(g.pct)}%
+                          </p>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="bg-navy-light/90 p-4 border-t border-primary-foreground/10 text-center">
+            <Link to="/mis-metas" className="text-sm text-gold font-semibold hover:underline">
+              Configura tu primera meta →
+            </Link>
           </div>
         )}
       </motion.div>

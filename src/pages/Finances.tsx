@@ -50,6 +50,8 @@ export default function Finances() {
 
   // Historial
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [saleItemsMap, setSaleItemsMap] = useState<Record<string, string[]>>({});
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<PurchaseRow | null>(null);
   const [editForm, setEditForm] = useState({ amount: 0, description: '', credit_due_date: '' });
@@ -129,6 +131,22 @@ export default function Finances() {
         ...p,
         client_name: p.clients?.name || 'Sin clienta',
       })));
+      // Load sale_items for all purchases
+      const purchaseIds = data.map((p: any) => p.id);
+      if (purchaseIds.length > 0) {
+        const { data: items } = await supabase
+          .from('sale_items')
+          .select('purchase_id, category, quantity')
+          .in('purchase_id', purchaseIds);
+        if (items) {
+          const map: Record<string, string[]> = {};
+          items.forEach((item: any) => {
+            if (!map[item.purchase_id]) map[item.purchase_id] = [];
+            map[item.purchase_id].push(`${item.quantity}x ${item.category}`);
+          });
+          setSaleItemsMap(map);
+        }
+      }
     }
   };
 
@@ -368,41 +386,63 @@ export default function Finances() {
 
         {/* ════════ Tab: Historial ════════ */}
         <TabsContent value="historial" className="mt-4 space-y-2">
-          {purchases.length === 0 ? (
-            <div className="text-center py-10">
-              <p className="text-sm text-muted-foreground">
-                Aún no hay ventas registradas. Usa el botón Vender para empezar 💪
-              </p>
-            </div>
-          ) : (
-            purchases.map((p, i) => (
-              <motion.button
-                key={p.id}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.02 }}
-                onClick={() => openDetail(p)}
-                className="w-full bg-card rounded-xl p-4 shadow-card text-left"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{p.client_name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{p.description || 'Venta'}</p>
-                  </div>
-                  <div className="text-right ml-3 shrink-0">
-                    <p className="text-sm font-semibold text-navy">{formatCurrency(Number(p.amount))}</p>
-                    <p className="text-[10px] text-muted-foreground">{formatDate(p.purchase_date)}</p>
-                  </div>
+          <Input
+            placeholder="Buscar clienta..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="mb-2"
+          />
+          {(() => {
+            const filtered = purchases.filter(p =>
+              p.client_name.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+            if (filtered.length === 0) {
+              return (
+                <div className="text-center py-10">
+                  <p className="text-sm text-muted-foreground">
+                    {purchases.length === 0
+                      ? 'Aún no hay ventas registradas. Usa el botón Vender para empezar 💪'
+                      : 'No se encontraron ventas para esa clienta'}
+                  </p>
                 </div>
-                <div className="flex gap-1.5 mt-2">
-                  <Badge variant="outline" className="text-[10px]">
-                    {p.is_credit ? '💳 Crédito' : '💵 Contado'}
-                  </Badge>
-                  {getStatusBadge(p)}
-                </div>
-              </motion.button>
-            ))
-          )}
+              );
+            }
+            return filtered.map((p, i) => {
+              const descIsEmpty = !p.description || p.description.trim() === '' || p.description.toLowerCase() === 'nada';
+              const itemLabels = saleItemsMap[p.id];
+              const subtitle = descIsEmpty
+                ? (itemLabels && itemLabels.length > 0 ? itemLabels.join(', ') : null)
+                : p.description;
+
+              return (
+                <motion.button
+                  key={p.id}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.02 }}
+                  onClick={() => openDetail(p)}
+                  className="w-full bg-card rounded-xl p-4 shadow-card text-left"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{p.client_name}</p>
+                      {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
+                    </div>
+                    <div className="text-right ml-3 shrink-0">
+                      <p className="text-sm font-semibold text-navy">{formatCurrency(Number(p.amount))}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatDate(p.purchase_date)}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 mt-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      {p.is_credit ? '💳 Crédito' : '💵 Contado'}
+                    </Badge>
+                    {getStatusBadge(p)}
+                  </div>
+                </motion.button>
+              );
+            });
+          })()}
         </TabsContent>
       </Tabs>
 
