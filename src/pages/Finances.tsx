@@ -146,7 +146,7 @@ export default function Finances() {
     <div>
       {/* HEADER */}
       <div style={{ background: HEADER_GRADIENT, padding: '48px 20px 24px' }}>
-        <h1 className="text-white" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>
+        <h1 className="text-white font-nunito" style={{ fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>
           Finanzas 💰
         </h1>
         <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>{monthNames[month]} {year}</p>
@@ -167,15 +167,15 @@ export default function Finances() {
             {/* Resumen */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}>
               <p className="text-xs opacity-70 mb-1">Total vendido en el mes</p>
-              <p className="text-3xl font-bold" style={{ fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(monthTotal)}</p>
+              <p className="text-3xl font-bold font-nunito">{formatCurrency(monthTotal)}</p>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.1)' }}>
                   <p className="text-[10px] opacity-70">Promedio semanal</p>
-                  <p className="text-sm font-semibold" style={{ fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(avgWeekly)}</p>
+                  <p className="text-sm font-semibold font-nunito">{formatCurrency(avgWeekly)}</p>
                 </div>
                 <div className="rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.1)' }}>
                   <p className="text-[10px] opacity-70">Mejor semana</p>
-                  <p className="text-sm font-semibold" style={{ fontFamily: 'Nunito, sans-serif' }}>{bestWeek ? `S${bestWeek.week}: ${formatCurrency(bestWeek.total_sales)}` : '—'}</p>
+                  <p className="text-sm font-semibold font-nunito">{bestWeek ? `S${bestWeek.week}: ${formatCurrency(bestWeek.total_sales)}` : '—'}</p>
                 </div>
               </div>
               {monthlyGoal > 0 && (
@@ -199,15 +199,15 @@ export default function Finances() {
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-white rounded-xl p-3 text-center" style={{ boxShadow: CARD_SHADOW }}>
                   <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Producto {pctReposicionLabel}%</p>
-                  <p className="text-sm font-bold mt-1" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(reposicion)}</p>
+                  <p className="text-sm font-bold mt-1 font-nunito" style={{ color: '#2D1B69' }}>{formatCurrency(reposicion)}</p>
                 </div>
                 <div className="rounded-xl p-3 text-center text-white" style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}>
                   <p className="text-[10px] opacity-70 font-medium">Ganancia {pctGananciaLabel}%</p>
-                  <p className="text-sm font-bold mt-1" style={{ fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(ganancia)}</p>
+                  <p className="text-sm font-bold mt-1 font-nunito">{formatCurrency(ganancia)}</p>
                 </div>
                 <div className="bg-white rounded-xl p-3 text-center" style={{ boxShadow: CARD_SHADOW }}>
                   <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Gastos {pctGastosLabel}%</p>
-                  <p className="text-sm font-bold mt-1" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(gastos)}</p>
+                  <p className="text-sm font-bold mt-1 font-nunito" style={{ color: '#2D1B69' }}>{formatCurrency(gastos)}</p>
                 </div>
               </div>
             </motion.div>
@@ -217,9 +217,9 @@ export default function Finances() {
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl p-4 space-y-3" style={{ boxShadow: CARD_SHADOW }}>
                 <h3 className="text-sm font-semibold" style={{ color: '#2D1B69' }}>Tu ganancia: {formatCurrency(ganancia)}</h3>
                 <div className="space-y-2.5">
-                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full" style={{ background: '#2D1B69' }} /><span className="text-xs" style={{ color: '#8a8a9a' }}>{pctNecesidadesLabel}% Necesidades</span></div><span className="text-sm font-semibold" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(necesidades)}</span></div>
-                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full" style={{ background: '#C06DD6' }} /><span className="text-xs" style={{ color: '#8a8a9a' }}>{pctDeseosLabel}% Deseos</span></div><span className="text-sm font-semibold" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(deseos)}</span></div>
-                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Star className="w-3 h-3" style={{ color: '#C06DD6' }} /><span className="text-xs" style={{ color: '#8a8a9a' }}>{pctAhorroLabel}% Ahorro / Sueños</span></div><span className="text-sm font-bold" style={{ color: '#6B2FA0', fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(ahorro)}</span></div>
+                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full" style={{ background: '#2D1B69' }} /><span className="text-xs" style={{ color: '#8a8a9a' }}>{pctNecesidadesLabel}% Necesidades</span></div><span className="text-sm font-semibold font-nunito" style={{ color: '#2D1B69' }}>{formatCurrency(necesidades)}</span></div>
+                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full" style={{ background: '#C06DD6' }} /><span className="text-xs" style={{ color: '#8a8a9a' }}>{pctDeseosLabel}% Deseos</span></div><span className="text-sm font-semibold font-nunito" style={{ color: '#2D1B69' }}>{formatCurrency(deseos)}</span></div>
+                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Star className="w-3 h-3" style={{ color: '#C06DD6' }} /><span className="text-xs" style={{ color: '#8a8a9a' }}>{pctAhorroLabel}% Ahorro / Sueños</span></div><span className="text-sm font-bold font-nunito" style={{ color: '#6B2FA0' }}>{formatCurrency(ahorro)}</span></div>
                 </div>
                 <div className="rounded-lg p-2.5 text-center" style={{ background: '#F0E6F6' }}>
                   <p className="text-xs" style={{ color: '#2D1B69' }}>Este mes, <span className="font-bold" style={{ color: '#6B2FA0' }}>{formatCurrency(ahorro)}</span> fueron a tus sueños ⭐</p>

@@ -100,7 +100,7 @@ export default function Challenge() {
     <div>
       {/* HEADER */}
       <div style={{ background: HEADER_GRADIENT, padding: '48px 20px 24px' }}>
-        <h1 className="text-white" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>Mis Metas 🎯</h1>
+        <h1 className="text-white font-nunito" style={{ fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>Mis Metas 🎯</h1>
         <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Elige tu próximo sueño</p>
       </div>
 
@@ -140,7 +140,7 @@ export default function Challenge() {
           {activeGoal && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="rounded-[18px] p-5 space-y-4 text-white" style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2"><span className="text-2xl">{getEmojiForType(activeGoal.target_type)}</span><h2 className="text-lg font-bold" style={{ fontFamily: 'Nunito, sans-serif' }}>{activeGoal.target_name}</h2></div>
+                <div className="flex items-center gap-2"><span className="text-2xl">{getEmojiForType(activeGoal.target_type)}</span><h2 className="text-lg font-bold font-nunito">{activeGoal.target_name}</h2></div>
                 <button onClick={() => { const tmpl = ALL_TEMPLATES.find(t => t.type === activeGoal.target_type) ?? DREAM_TEMPLATES[4]; openDialog(tmpl); }} style={{ color: 'rgba(255,255,255,0.6)' }}><Pencil className="w-4 h-4" /></button>
               </div>
               <div className="space-y-2">
@@ -161,7 +161,7 @@ export default function Challenge() {
             <div className="flex items-end gap-3">
               <span className="text-3xl">{getEmojiForType(activeGoal.target_type)}</span>
               <div className="flex-1"><div className="w-full h-3 rounded-full" style={{ background: '#F0E6F6' }}><div className="h-full rounded-full" style={{ width: `${dreamProgress}%`, background: 'linear-gradient(90deg, #C06DD6, #6B2FA0)' }} /></div></div>
-              <span className="text-sm font-bold" style={{ color: '#6B2FA0', fontFamily: 'Nunito, sans-serif' }}>{dreamProgress}%</span>
+              <span className="text-sm font-bold font-nunito" style={{ color: '#6B2FA0' }}>{dreamProgress}%</span>
             </div>
             <p className="text-sm" style={{ color: '#8a8a9a' }}>{formatCurrency(totalProfit)} ganado de {formatCurrency(activeGoal.target_amount)}</p>
             <p className="text-sm font-medium" style={{ color: '#2D1B69' }}>{getMotivationalPhrase(dreamProgress)}</p>
@@ -188,7 +188,7 @@ export default function Challenge() {
                 {!isReto && <p className="text-sm">Ahorro mensual necesario: {formatCurrency(Math.round(calc.ahorroMensual))}</p>}
                 <p className="text-sm">Ganancia mensual necesaria: {formatCurrency(Math.round(calc.gananciaMensual))}</p>
                 <p className="text-sm">Ventas mensuales necesarias: {formatCurrency(Math.round(calc.ventaMensual))}</p>
-                <p className="text-base font-bold mt-1" style={{ color: '#E8A5F0', fontFamily: 'Nunito, sans-serif' }}>= {formatCurrency(Math.round(calc.ventaDiaria))} por día 💪</p>
+                <p className="text-base font-bold mt-1 font-nunito" style={{ color: '#E8A5F0' }}>= {formatCurrency(Math.round(calc.ventaDiaria))} por día 💪</p>
                 <p className="text-[10px] mt-2" style={{ color: 'rgba(255,255,255,0.5)' }}>Usando tu ganancia del {pctGanancia}% y ahorro del {pctAhorro}% · Ajusta en Mi Cuenta</p>
               </motion.div>
             )}
