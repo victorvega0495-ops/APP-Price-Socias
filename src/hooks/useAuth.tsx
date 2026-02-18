@@ -2,10 +2,21 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
+interface ProfileData {
+  name: string;
+  phone: string;
+  partner_number: string;
+  metodologia: string;
+  pct_reposicion: number;
+  pct_ganancia: number;
+  pct_ahorro: number;
+}
+
 interface AuthContextType {
   user: User | null;
-  profile: { name: string; phone: string; partner_number: string } | null;
+  profile: ProfileData | null;
   loading: boolean;
+  refreshProfile: () => Promise<void>;
   signUp: (email: string, password: string, name: string, phone: string, partnerNumber: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -15,16 +26,31 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<{ name: string; phone: string; partner_number: string } | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('name, phone, partner_number')
+      .select('name, phone, partner_number, metodologia, pct_reposicion, pct_ganancia, pct_ahorro')
       .eq('user_id', userId)
       .single();
-    if (data) setProfile(data as any);
+    if (data) {
+      const d = data as any;
+      setProfile({
+        name: d.name ?? '',
+        phone: d.phone ?? '',
+        partner_number: d.partner_number ?? '',
+        metodologia: d.metodologia ?? 'recomendada',
+        pct_reposicion: Number(d.pct_reposicion ?? 65),
+        pct_ganancia: Number(d.pct_ganancia ?? 30),
+        pct_ahorro: Number(d.pct_ahorro ?? 20),
+      });
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user) await fetchProfile(user.id);
   };
 
   useEffect(() => {
@@ -57,7 +83,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       },
     });
     if (!error) {
-      // Update profile with phone and partner number after signup
       const { data: { user: newUser } } = await supabase.auth.getUser();
       if (newUser) {
         await supabase.from('profiles').update({ phone, partner_number: partnerNumber }).eq('user_id', newUser.id);
@@ -78,7 +103,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, refreshProfile, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -194,8 +194,12 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          metodologia: string | null
           name: string
           partner_number: string | null
+          pct_ahorro: number | null
+          pct_ganancia: number | null
+          pct_reposicion: number | null
           phone: string | null
           updated_at: string
           user_id: string
@@ -203,8 +207,12 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          metodologia?: string | null
           name: string
           partner_number?: string | null
+          pct_ahorro?: number | null
+          pct_ganancia?: number | null
+          pct_reposicion?: number | null
           phone?: string | null
           updated_at?: string
           user_id: string
@@ -212,8 +220,12 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          metodologia?: string | null
           name?: string
           partner_number?: string | null
+          pct_ahorro?: number | null
+          pct_ganancia?: number | null
+          pct_reposicion?: number | null
           phone?: string | null
           updated_at?: string
           user_id?: string
