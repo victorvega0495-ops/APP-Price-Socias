@@ -1,13 +1,13 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, DollarSign, Users, Package, Trophy, Plus } from 'lucide-react';
+import { Home, DollarSign, Users, ShoppingBag, Trophy, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const tabs = [
   { to: '/', icon: Home, label: 'Inicio' },
   { to: '/finanzas', icon: DollarSign, label: 'Finanzas' },
+  { to: '/vender', icon: ShoppingBag, label: 'Vender' },
   { to: '/clientas', icon: Users, label: 'Clientas' },
-  { to: '/inventario', icon: Package, label: 'Inventario' },
   { to: '/mi-reto', icon: Trophy, label: 'Mi Reto' },
 ];
 
@@ -17,9 +17,8 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
   const [fabOpen, setFabOpen] = useState(false);
 
   const fabActions = [
-    { label: 'Registrar venta', path: '/finanzas', icon: DollarSign },
+    { label: 'Registrar venta', path: '/vender', icon: ShoppingBag },
     { label: 'Agregar clienta', path: '/clientas?add=true', icon: Users },
-    { label: 'Agregar producto', path: '/inventario?add=true', icon: Package },
   ];
 
   return (
