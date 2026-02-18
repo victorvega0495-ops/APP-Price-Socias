@@ -49,9 +49,7 @@ export default function Auth() {
           {/* Logo */}
           <div className="text-center mb-8">
             <img src="/logo-um.png" alt="Universidad de la Mujer" className="h-10 object-contain mx-auto mb-3" />
-            <div className="inline-block mx-auto mb-3" style={{ background: 'white', borderRadius: '12px', padding: '10px 20px' }}>
-              <img src="/logo-price.png" alt="Price Shoes" style={{ height: '40px', objectFit: 'contain', display: 'block' }} />
-            </div>
+            <div style={{ color: 'white', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 800, fontSize: '20px', letterSpacing: '0.05em', opacity: 0.9, marginBottom: '12px' }}>PRICE SHOES</div>
             <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.7)' }}>App para Socias</p>
             <h1 className="text-2xl font-bold text-white mt-2 font-nunito">Mi Negocio Price</h1>
             <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Tu herramienta para el Reto 0 a 10,000</p>

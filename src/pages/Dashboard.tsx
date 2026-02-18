@@ -283,7 +283,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
           <img src="/logo-um.png" alt="Universidad de la Mujer" style={{ height: '36px', objectFit: 'contain' }} />
           <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.35)' }} />
-          <img src="/logo-price.png" alt="Price Shoes" style={{ height: '32px', objectFit: 'contain', filter: 'brightness(10)', opacity: 0.9 }} />
+          <div style={{ color: 'white', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 800, fontSize: '16px', letterSpacing: '0.05em', opacity: 0.9 }}>PRICE SHOES</div>
         </div>
 
         {/* Profile row */}
