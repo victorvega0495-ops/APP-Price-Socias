@@ -2,19 +2,35 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatCurrencyDecimals } from '@/lib/format';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Target, TrendingUp } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertTriangle, TrendingUp, History, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface WeekData {
   week: number;
   total_sales: number;
   product_cost: number;
+}
+
+interface PurchaseRow {
+  id: string;
+  amount: number;
+  description: string | null;
+  purchase_date: string;
+  is_credit: boolean;
+  credit_paid: boolean | null;
+  credit_due_date: string | null;
+  credit_paid_amount: number | null;
+  client_name: string;
+  client_id: string | null;
 }
 
 export default function Finances() {
@@ -30,9 +46,11 @@ export default function Finances() {
     { week: 4, total_sales: 0, product_cost: 0 },
   ]);
 
-  // Goals
-  const [monthlyTarget, setMonthlyTarget] = useState(0);
-  const [monthTotalSales, setMonthTotalSales] = useState(0);
+  // Historial
+  const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [editingPurchase, setEditingPurchase] = useState<PurchaseRow | null>(null);
+  const [editForm, setEditForm] = useState({ amount: 0, description: '', credit_due_date: '' });
 
   useEffect(() => {
     if (!user) return;
@@ -49,19 +67,25 @@ export default function Finances() {
           return { week: w, total_sales: found ? Number(found.total_sales) : 0, product_cost: found ? Number(found.product_cost) : 0 };
         });
         setWeeks(mapped);
-        setMonthTotalSales(mapped.reduce((s, w) => s + w.total_sales, 0));
       }
-      const { data: goalData } = await supabase
-        .from('monthly_goals')
-        .select('target_income')
-        .eq('user_id', user.id)
-        .eq('year', year)
-        .eq('month', month)
-        .maybeSingle();
-      if (goalData) setMonthlyTarget(Number(goalData.target_income));
     };
     load();
   }, [user, year, month]);
+
+  const loadPurchases = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('purchases')
+      .select('id, amount, description, purchase_date, is_credit, credit_paid, credit_due_date, credit_paid_amount, client_id, clients(name)')
+      .eq('user_id', user.id)
+      .order('purchase_date', { ascending: false });
+    if (data) {
+      setPurchases(data.map((p: any) => ({
+        ...p,
+        client_name: p.clients?.name || 'Sin clienta',
+      })));
+    }
+  };
 
   const saveWeek = async (weekData: WeekData) => {
     if (!user) return;
@@ -77,41 +101,80 @@ export default function Finances() {
       toast({ title: 'Error al guardar', variant: 'destructive' });
     } else {
       toast({ title: '¡Guardado! ✅' });
-      const newTotal = weeks.reduce((s, w) => s + (w.week === weekData.week ? weekData.total_sales : w.total_sales), 0);
-      setMonthTotalSales(newTotal);
     }
   };
 
-  const saveMonthlyGoal = async () => {
-    if (!user) return;
-    await supabase
-      .from('monthly_goals')
-      .upsert({ user_id: user.id, year, month, target_income: monthlyTarget }, { onConflict: 'user_id,year,month' });
-    toast({ title: 'Meta guardada ✅' });
+  const openDetail = (p: PurchaseRow) => {
+    setEditingPurchase(p);
+    setEditForm({
+      amount: Number(p.amount),
+      description: p.description || '',
+      credit_due_date: p.credit_due_date || '',
+    });
+    setDetailOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editingPurchase) return;
+    await supabase.from('purchases').update({
+      amount: editForm.amount,
+      description: editForm.description || null,
+      credit_due_date: editForm.credit_due_date || null,
+    }).eq('id', editingPurchase.id);
+    toast({ title: 'Venta actualizada ✅' });
+    setDetailOpen(false);
+    loadPurchases();
+  };
+
+  const markAsPaid = async () => {
+    if (!editingPurchase) return;
+    await supabase.from('purchases').update({
+      credit_paid: true,
+      credit_paid_amount: editingPurchase.amount,
+    }).eq('id', editingPurchase.id);
+    toast({ title: '¡Marcada como pagada! ✅' });
+    setDetailOpen(false);
+    loadPurchases();
+  };
+
+  const getStatusBadge = (p: PurchaseRow) => {
+    if (!p.is_credit || p.credit_paid) {
+      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[10px]">Pagado</Badge>;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    if (p.credit_due_date && p.credit_due_date < today) {
+      return <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/10 text-[10px]">Vencido</Badge>;
+    }
+    return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-[10px]">Pendiente</Badge>;
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr + 'T12:00:00'), "d MMM yyyy", { locale: es });
+    } catch {
+      return dateStr;
+    }
   };
 
   const monthNames = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const monthTotal = weeks.reduce((s, w) => s + w.total_sales, 0);
-  const goalProgress = monthlyTarget > 0 ? Math.min(100, (monthTotalSales / monthlyTarget) * 100) : 0;
-  const weeklyNeeded = monthlyTarget > 0 ? monthlyTarget / 4 : 0;
-  const dailyNeeded = weeklyNeeded / 7;
 
   return (
     <div className="px-4 pt-6 pb-4">
       <h1 className="text-xl font-bold text-foreground mb-1">Finanzas</h1>
       <p className="text-sm text-muted-foreground mb-4">{monthNames[month]} {year}</p>
 
-      <Tabs defaultValue="weekly" className="w-full">
+      <Tabs defaultValue="weekly" className="w-full" onValueChange={(v) => { if (v === 'historial') loadPurchases(); }}>
         <TabsList className="grid w-full grid-cols-2 bg-muted rounded-xl h-10">
           <TabsTrigger value="weekly" className="text-xs rounded-lg data-[state=active]:bg-navy data-[state=active]:text-primary-foreground">
-            <TrendingUp className="w-3.5 h-3.5 mr-1" /> Semanal
+            <TrendingUp className="w-3.5 h-3.5 mr-1" /> Control Semanal
           </TabsTrigger>
-          <TabsTrigger value="goals" className="text-xs rounded-lg data-[state=active]:bg-navy data-[state=active]:text-primary-foreground">
-            <Target className="w-3.5 h-3.5 mr-1" /> Metas
+          <TabsTrigger value="historial" className="text-xs rounded-lg data-[state=active]:bg-navy data-[state=active]:text-primary-foreground">
+            <History className="w-3.5 h-3.5 mr-1" /> Historial
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab A: Weekly */}
+        {/* Tab A: Control Semanal */}
         <TabsContent value="weekly" className="mt-4 space-y-3">
           {weeks.map((w, i) => {
             const costLimit = w.total_sales * 0.65;
@@ -175,7 +238,7 @@ export default function Finances() {
                   <div className="mt-2 flex items-start gap-2 bg-destructive/10 rounded-lg p-2.5">
                     <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-foreground">
-                      ⚠️ Tu precio de venta está muy bajo. No estás cubriendo el costo de tu producto. Acércate al equipo del Reto para aprender a calcular mejor tu precio.
+                      ⚠️ Tu precio de venta está muy bajo. No estás cubriendo el costo de tu producto.
                     </p>
                   </div>
                 )}
@@ -195,56 +258,116 @@ export default function Finances() {
           </div>
         </TabsContent>
 
-        {/* Tab B: Monthly Goals */}
-        <TabsContent value="goals" className="mt-4 space-y-4">
-          <div className="bg-card rounded-xl p-5 shadow-card space-y-4">
-            <div>
-              <Label>Meta de ingreso mensual</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  value={monthlyTarget || ''}
-                  onChange={(e) => setMonthlyTarget(Number(e.target.value) || 0)}
-                  placeholder="$10,000"
-                />
-                <Button onClick={saveMonthlyGoal} className="bg-navy text-primary-foreground shrink-0">
-                  Guardar
-                </Button>
-              </div>
+        {/* Tab B: Historial */}
+        <TabsContent value="historial" className="mt-4 space-y-2">
+          {purchases.length === 0 ? (
+            <div className="text-center py-10">
+              <p className="text-sm text-muted-foreground">
+                Aún no hay ventas registradas. Usa el botón Vender para empezar 💪
+              </p>
             </div>
+          ) : (
+            purchases.map((p, i) => (
+              <motion.button
+                key={p.id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.02 }}
+                onClick={() => openDetail(p)}
+                className="w-full bg-card rounded-xl p-4 shadow-card text-left"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{p.client_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.description || 'Venta'}</p>
+                  </div>
+                  <div className="text-right ml-3 shrink-0">
+                    <p className="text-sm font-semibold text-navy">{formatCurrency(Number(p.amount))}</p>
+                    <p className="text-[10px] text-muted-foreground">{formatDate(p.purchase_date)}</p>
+                  </div>
+                </div>
+                <div className="flex gap-1.5 mt-2">
+                  <Badge variant="outline" className="text-[10px]">
+                    {p.is_credit ? '💳 Crédito' : '💵 Contado'}
+                  </Badge>
+                  {getStatusBadge(p)}
+                </div>
+              </motion.button>
+            ))
+          )}
+        </TabsContent>
+      </Tabs>
 
-            {monthlyTarget > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Para llegar necesitas vender:</p>
-                  <div className="grid grid-cols-2 gap-3 mt-2">
-                    <div className="bg-muted rounded-xl p-3">
-                      <p className="text-xs text-muted-foreground">Por semana</p>
-                      <p className="text-lg font-bold text-navy">{formatCurrency(weeklyNeeded)}</p>
-                    </div>
-                    <div className="bg-muted rounded-xl p-3">
-                      <p className="text-xs text-muted-foreground">Por día</p>
-                      <p className="text-lg font-bold text-navy">{formatCurrency(dailyNeeded)}</p>
-                    </div>
+      {/* Purchase Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          {editingPurchase && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Pencil className="w-4 h-4" /> Detalle de venta
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="bg-muted rounded-lg p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Clienta</p>
+                  <p className="text-sm font-semibold">{editingPurchase.client_name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{formatDate(editingPurchase.purchase_date)}</p>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Monto</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                    <Input
+                      type="number"
+                      value={editForm.amount || ''}
+                      onChange={(e) => setEditForm({ ...editForm, amount: Number(e.target.value) || 0 })}
+                      className="pl-7"
+                    />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Progreso del mes</span>
-                    <span className="font-semibold">{Math.round(goalProgress)}%</span>
-                  </div>
-                  <Progress value={goalProgress} className="h-3 bg-muted [&>div]:bg-gradient-gold" />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>{formatCurrency(monthTotalSales)}</span>
-                    <span>{formatCurrency(monthlyTarget)}</span>
-                  </div>
+                  <Label className="text-xs">Descripción</Label>
+                  <Input
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    placeholder="Ej: Zapatillas negras"
+                    className="mt-1"
+                  />
                 </div>
-              </motion.div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+
+                {editingPurchase.is_credit && (
+                  <div>
+                    <Label className="text-xs">Fecha de pago acordada</Label>
+                    <Input
+                      type="date"
+                      value={editForm.credit_due_date}
+                      onChange={(e) => setEditForm({ ...editForm, credit_due_date: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                )}
+
+                <Button onClick={saveEdit} className="w-full bg-navy text-primary-foreground">
+                  Guardar cambios
+                </Button>
+
+                {editingPurchase.is_credit && !editingPurchase.credit_paid && (
+                  <Button
+                    onClick={markAsPaid}
+                    variant="outline"
+                    className="w-full border-green-500 text-green-700 hover:bg-green-50"
+                  >
+                    ✅ Marcar como pagada
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
