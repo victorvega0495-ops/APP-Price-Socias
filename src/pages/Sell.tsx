@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -109,10 +109,9 @@ export default function Sell() {
   const [itemCategory, setItemCategory] = useState('');
   const [itemIcon, setItemIcon] = useState('');
   const [itemQty, setItemQty] = useState(1);
-  const [itemCost, setItemCost] = useState(0);
-  const [itemSale, setItemSale] = useState(0);
+  const [itemCostInput, setItemCostInput] = useState('');
+  const [itemSaleInput, setItemSaleInput] = useState('');
   const [itemSaleManual, setItemSaleManual] = useState(false);
-  const itemSaleRef = useRef<HTMLInputElement>(null);
 
   // Totals override
   const [totalOverride, setTotalOverride] = useState<number | null>(null);
@@ -187,23 +186,23 @@ export default function Sell() {
   };
 
   const addItemToList = () => {
-    if (!itemCategory || itemCost <= 0) return;
+    const costNum = Number(itemCostInput) || 0;
+    const saleNum = Number(itemSaleInput) || 0;
+    if (!itemCategory || costNum <= 0) return;
     setItems(prev => [...prev, {
       id: crypto.randomUUID(),
       category: itemCategory,
       icon: itemIcon,
       quantity: itemQty,
-      costPrice: itemCost,
-      salePrice: itemSale,
+      costPrice: costNum,
+      salePrice: saleNum,
     }]);
-    // Reset inline form
     setItemCategory('');
     setItemIcon('');
     setItemQty(1);
-    setItemCost(0);
-    setItemSale(0);
+    setItemCostInput('');
+    setItemSaleInput('');
     setItemSaleManual(false);
-    if (itemSaleRef.current) itemSaleRef.current.value = '';
     setAddingItem(false);
   };
 
@@ -579,15 +578,15 @@ export default function Sell() {
                 </div>
                 <div>
                   <Label className="text-xs">Te costó ($)</Label>
-                  <Input type="number" value={itemCost || ''} onChange={e => { const val = Number(e.target.value) || 0; setItemCost(val); if (!itemSaleManual) { const calc = Math.round(val * (1 + pctGanancia / 100)); setItemSale(calc); if (itemSaleRef.current) itemSaleRef.current.value = val > 0 ? calc.toString() : ''; } }} placeholder="0" className="mt-1 text-sm" />
+                  <Input type="number" value={itemCostInput} onChange={e => { const raw = e.target.value; setItemCostInput(raw); if (!itemSaleManual) { const num = Number(raw) || 0; const suggested = Math.round(num * (1 + pctGanancia / 100)); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); } }} placeholder="0" className="mt-1 text-sm" />
                 </div>
               <div>
                   <Label className="text-xs">Le cobras ($)</Label>
                   <div className="flex gap-1 mt-1">
-                    <input ref={itemSaleRef} type="number" defaultValue="" onChange={e => { setItemSale(Number(e.target.value) || 0); setItemSaleManual(true); }} placeholder="0" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex-1" />
-                    {itemSaleManual && itemCost > 0 && (
+                    <Input type="number" value={itemSaleInput} onChange={e => { setItemSaleInput(e.target.value); setItemSaleManual(true); }} placeholder="0" className="text-sm flex-1" />
+                    {itemSaleManual && Number(itemCostInput) > 0 && (
                       <button
-                        onClick={() => { const calc = Math.round(itemCost * (1 + pctGanancia / 100)); setItemSaleManual(false); setItemSale(calc); if (itemSaleRef.current) itemSaleRef.current.value = calc.toString(); }}
+                        onClick={() => { const num = Number(itemCostInput) || 0; const suggested = Math.round(num * (1 + pctGanancia / 100)); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); setItemSaleManual(false); }}
                         className="text-[10px] text-navy shrink-0 px-1"
                         title="Recalcular"
                       >↺</button>
@@ -595,13 +594,13 @@ export default function Sell() {
                   </div>
                 </div>
               </div>
-              {itemCost > 0 && !itemSaleManual && (
+              {Number(itemCostInput) > 0 && !itemSaleManual && (
                 <p className="text-[10px] text-muted-foreground">Auto: +{pctGanancia}% ganancia del perfil</p>
               )}
 
               <Button
                 onClick={addItemToList}
-                disabled={!itemCategory || itemCost <= 0}
+                disabled={!itemCategory || Number(itemCostInput) <= 0}
                 size="sm"
                 className="w-full bg-navy text-primary-foreground"
               >
