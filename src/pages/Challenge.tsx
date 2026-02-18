@@ -81,6 +81,7 @@ export default function Challenge() {
   const saveGoal = async () => {
     if (!user || !selectedTemplate) return;
     if (!formAmount || formAmount <= 0) { toast({ title: 'Ingresa un monto válido', variant: 'destructive' }); return; }
+    if (!formMonths || formMonths <= 0) { toast({ title: 'Ingresa un plazo válido (meses)', variant: 'destructive' }); return; }
     setSaving(true);
     const deadlineDate = new Date(); deadlineDate.setDate(deadlineDate.getDate() + formMonths * 30);
     const payload = { user_id: user.id, target_amount: formAmount, deadline: deadlineDate.toISOString().split('T')[0], target_name: formName || selectedTemplate.name, target_type: selectedTemplate.type, monthly_sales_needed: Math.round(calc.ventaMensual) };
@@ -179,7 +180,7 @@ export default function Challenge() {
             <div><Label className="text-xs">Nombre de la meta</Label><Input value={formName} onChange={(e) => setFormName(e.target.value)} disabled={isReto} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="relative"><Label className="text-xs">Costo del sueño ($)</Label><Input type="number" value={formAmount || ''} onChange={(e) => setFormAmount(Number(e.target.value) || 0)} disabled={selectedTemplate?.fixed} placeholder="$50,000" />{selectedTemplate?.fixed && <Lock className="absolute right-3 top-8 w-3.5 h-3.5" style={{ color: '#8a8a9a' }} />}</div>
-              <div className="relative"><Label className="text-xs">Plazo (meses)</Label><Input type="number" value={formMonths || ''} onChange={(e) => setFormMonths(Math.max(1, Number(e.target.value) || 1))} disabled={selectedTemplate?.fixed} min={1} />{selectedTemplate?.fixed && <Lock className="absolute right-3 top-8 w-3.5 h-3.5" style={{ color: '#8a8a9a' }} />}</div>
+              <div className="relative"><Label className="text-xs">Plazo (meses)</Label><Input type="number" value={formMonths || ''} onChange={(e) => setFormMonths(Number(e.target.value) || 0)} disabled={selectedTemplate?.fixed} />{selectedTemplate?.fixed && <Lock className="absolute right-3 top-8 w-3.5 h-3.5" style={{ color: '#8a8a9a' }} />}</div>
             </div>
             {formAmount > 0 && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl p-4 space-y-2 text-white" style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}>

@@ -6,7 +6,7 @@ import { formatCurrency, formatCurrencyDecimals } from '@/lib/format';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+
 import { Plus, Sparkles, ShoppingBag, Send, Trash2, Check, Copy, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -100,8 +100,6 @@ export default function Sell() {
   // Calculator state
   // ========================
   const [partnerPrice, setPartnerPrice] = useState(0);
-  const [incrementMode, setIncrementMode] = useState<'percent' | 'amount'>('percent');
-  const [incrementValue, setIncrementValue] = useState(54);
   const [saleType, setSaleType] = useState<'cash' | 'credit'>('cash');
   const [creditCommission, setCreditCommission] = useState(10);
   const [numPayments, setNumPayments] = useState(1);
@@ -144,17 +142,17 @@ export default function Sell() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{ total: number; profit: number } | null>(null);
 
-  // --- Calculator computations ---
-  const incrementAmount = incrementMode === 'percent'
-    ? partnerPrice * (incrementValue / 100)
-    : incrementValue;
-  const priceWithProfit = partnerPrice + incrementAmount;
-  const commissionAmount = saleType === 'credit' ? priceWithProfit * (creditCommission / 100) : 0;
-  const clientPrice = saleType === 'credit' ? priceWithProfit + commissionAmount : priceWithProfit;
+  // --- Calculator computations (fórmula unificada: costo / pct_reposicion) ---
+  const pctReposicionDecimal = (100 - pctGanancia - 5) / 100;
+  const calcBasePrice = partnerPrice > 0 ? Math.round(partnerPrice / pctReposicionDecimal) : 0;
+  const incrementoSugerido = Math.round((1 / pctReposicionDecimal - 1) * 100);
+  const pctProducto = Math.round(pctReposicionDecimal * 100);
+  const commissionAmount = saleType === 'credit' ? calcBasePrice * (creditCommission / 100) : 0;
+  const clientPrice = saleType === 'credit' ? calcBasePrice + commissionAmount : calcBasePrice;
   const calcPaymentAmount = saleType === 'credit' && numPayments > 1 ? clientPrice / numPayments : clientPrice;
-  const c3Product = clientPrice * 0.65;
-  const c3Profit = clientPrice * 0.30;
-  const c3Expenses = clientPrice * 0.05;
+  const c3Product = calcBasePrice * pctReposicionDecimal;
+  const c3Profit = calcBasePrice * (pctGanancia / 100);
+  const c3Expenses = calcBasePrice * 0.05;
 
   // --- Registration totals ---
   const sumCost = items.reduce((s, i) => s + i.costPrice * i.quantity, 0);
@@ -254,14 +252,23 @@ export default function Sell() {
     setAddingItem(false);
     if (mode === 'calc') {
       setPartnerPrice(0);
-      setIncrementValue(54);
       setSaleType('cash');
       setCreditCommission(10);
       setNumPayments(1);
     }
   };
 
-  const saveSale = async () => {
+  const startSaleFromCalc = () => {
+    const cost = partnerPrice;
+    const price = calcBasePrice;
+    setMode('direct');
+    setAddingItem(true);
+    setItemCostInput(cost > 0 ? cost.toString() : '');
+    setItemSaleInput(price > 0 ? price.toString() : '');
+    setItemSaleManual(true);
+  };
+
+   const saveSale = async () => {
     if (!user || items.length === 0) return;
     if (!selectedClientId && !newClientName.trim()) {
       toast({ title: 'Selecciona o crea una clienta', variant: 'destructive' });
@@ -585,7 +592,7 @@ export default function Sell() {
                 </div>
                 <div>
                   <Label className="text-xs">Te costó ($)</Label>
-                  <Input type="number" value={itemCostInput} onChange={e => { const raw = e.target.value; setItemCostInput(raw); if (!itemSaleManual) { const num = Number(raw) || 0; const suggested = Math.round(num * (1 + pctGanancia / 100)); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); } }} placeholder="0" className="mt-1 text-sm" />
+                  <Input type="number" value={itemCostInput} onChange={e => { const raw = e.target.value; setItemCostInput(raw); if (!itemSaleManual) { const num = Number(raw) || 0; const repDec = (100 - pctGanancia - 5) / 100; const suggested = Math.round(num / repDec); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); } }} placeholder="0" className="mt-1 text-sm" />
                 </div>
                 <div>
                   <Label className="text-xs">Le cobras ($)</Label>
@@ -593,7 +600,7 @@ export default function Sell() {
                     <Input type="number" value={itemSaleInput} onChange={e => { setItemSaleInput(e.target.value); setItemSaleManual(true); }} placeholder="0" className="text-sm flex-1" />
                     {itemSaleManual && Number(itemCostInput) > 0 && (
                       <button
-                        onClick={() => { const num = Number(itemCostInput) || 0; const suggested = Math.round(num * (1 + pctGanancia / 100)); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); setItemSaleManual(false); }}
+                        onClick={() => { const num = Number(itemCostInput) || 0; const repDec = (100 - pctGanancia - 5) / 100; const suggested = Math.round(num / repDec); setItemSaleInput(suggested > 0 ? suggested.toString() : ''); setItemSaleManual(false); }}
                         className="text-[10px] shrink-0 px-1" style={{ color: '#6B2FA0' }}
                         title="Recalcular"
                       >↺</button>
@@ -602,7 +609,7 @@ export default function Sell() {
                 </div>
               </div>
               {Number(itemCostInput) > 0 && !itemSaleManual && (
-                <p className="text-[10px]" style={{ color: '#8a8a9a' }}>Auto: +{pctGanancia}% ganancia del perfil</p>
+                <p className="text-[10px]" style={{ color: '#8a8a9a' }}>Auto: Producto {pctProducto}% · Ganancia {pctGanancia}% · Gastos 5%</p>
               )}
 
               {/* Category grid BELOW fields */}
@@ -821,67 +828,16 @@ export default function Sell() {
                     </div>
                   </div>
 
-                  {/* Increment */}
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium" style={{ color: '#2D1B69' }}>Incremento de ganancia</Label>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setIncrementMode('percent')}
-                          className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
-                          style={incrementMode === 'percent' ? BTN_PRIMARY : { background: '#F0E6F6', color: '#6B2FA0' }}
-                        >En %</button>
-                        <button
-                          onClick={() => setIncrementMode('amount')}
-                          className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
-                          style={incrementMode === 'amount' ? BTN_PRIMARY : { background: '#F0E6F6', color: '#6B2FA0' }}
-                        >En $</button>
+                  {/* Suggested increment info */}
+                  {partnerPrice > 0 && (
+                    <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: '#F0E6F6' }}>
+                      <Sparkles className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#6B2FA0' }} />
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: '#2D1B69' }}>Incremento sugerido: {incrementoSugerido}%</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: '#8a8a9a' }}>Basado en tu ganancia del {pctGanancia}% + 5% gastos</p>
                       </div>
                     </div>
-
-                    {incrementMode === 'percent' ? (
-                      <div className="mt-2 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-2xl font-bold" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>{incrementValue}%</span>
-                          {partnerPrice > 0 && (
-                            <span className="text-sm" style={{ color: '#8a8a9a' }}>+{formatCurrency(incrementAmount)}</span>
-                          )}
-                        </div>
-                        <Slider
-                          value={[incrementValue]}
-                          onValueChange={v => setIncrementValue(v[0])}
-                          min={10}
-                          max={100}
-                          step={1}
-                          className="py-2"
-                        />
-                        <div className="flex justify-between text-[10px]" style={{ color: '#8a8a9a' }}>
-                          <span>10%</span><span>100%</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="relative mt-2">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: '#8a8a9a' }}>$</span>
-                        <Input
-                          type="number"
-                          value={incrementValue || ''}
-                          onChange={e => setIncrementValue(Number(e.target.value) || 0)}
-                          placeholder="0"
-                          className="pl-7"
-                        />
-                      </div>
-                    )}
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setIncrementMode('percent'); setIncrementValue(54); }}
-                      className="mt-1 text-xs h-7"
-                      style={{ color: '#C06DD6' }}
-                    >
-                      <Sparkles className="w-3.5 h-3.5 mr-1" /> Incremento sugerido 54%
-                    </Button>
-                  </div>
+                  )}
 
                   {/* Sale type */}
                   <div>
@@ -931,9 +887,9 @@ export default function Sell() {
                     >
                       <div className="rounded-xl p-5 text-center text-white" style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}>
                         <p className="text-xs opacity-70 font-medium">Cóbrale a tu clienta</p>
-                        <p className="text-3xl font-bold" style={{ fontFamily: 'Nunito, sans-serif' }}>{formatCurrencyDecimals(clientPrice)}</p>
+                        <p className="text-3xl font-bold nunito">{formatCurrencyDecimals(clientPrice)}</p>
                         <p className="text-xs opacity-60 mt-1">
-                          Tu ganancia: {formatCurrency(c3Profit)} (30% de {formatCurrency(clientPrice)})
+                          Tu ganancia: {formatCurrency(Math.round(c3Profit))} ({pctGanancia}% de {formatCurrency(calcBasePrice)})
                         </p>
                         {saleType === 'credit' && numPayments > 1 && (
                           <p className="text-sm font-semibold mt-2" style={{ color: '#E8A5F0' }}>
@@ -944,36 +900,39 @@ export default function Sell() {
 
                       {/* WhatsApp & Copy buttons */}
                       <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          onClick={() => setCalcWaDialogOpen(true)}
-                          className="text-white text-xs h-10"
-                          style={{ background: 'hsl(142,71%,35%)' }}
-                        >
+                        <Button onClick={() => setCalcWaDialogOpen(true)} className="text-white text-xs h-10" style={{ background: 'hsl(142,71%,35%)' }}>
                           <MessageCircle className="w-4 h-4 mr-1" /> Compartir por WhatsApp
                         </Button>
-                        <Button
-                          onClick={copyCalcPrice}
-                          variant="outline"
-                          className="text-xs h-10"
-                        >
+                        <Button onClick={copyCalcPrice} variant="outline" className="text-xs h-10">
                           <Copy className="w-4 h-4 mr-1" /> Copiar precio
                         </Button>
                       </div>
 
                       <div className="grid grid-cols-3 gap-2">
                         <div className="bg-white rounded-xl p-3 text-center" style={{ boxShadow: CARD_SHADOW }}>
-                          <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Producto 65%</p>
-                          <p className="text-sm font-bold" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(c3Product)}</p>
+                          <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Producto {pctProducto}%</p>
+                          <p className="text-sm font-bold nunito" style={{ color: '#2D1B69' }}>{formatCurrency(Math.round(c3Product))}</p>
                         </div>
                         <div className="bg-white rounded-xl p-3 text-center" style={{ boxShadow: CARD_SHADOW }}>
-                          <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Ganancia 30%</p>
-                          <p className="text-sm font-bold" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(c3Profit)}</p>
+                          <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Ganancia {pctGanancia}%</p>
+                          <p className="text-sm font-bold nunito" style={{ color: '#2D1B69' }}>{formatCurrency(Math.round(c3Profit))}</p>
                         </div>
                         <div className="bg-white rounded-xl p-3 text-center" style={{ boxShadow: CARD_SHADOW }}>
                           <p className="text-[10px] font-medium" style={{ color: '#6B2FA0' }}>Gastos 5%</p>
-                          <p className="text-sm font-bold" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(c3Expenses)}</p>
+                          <p className="text-sm font-bold nunito" style={{ color: '#2D1B69' }}>{formatCurrency(Math.round(c3Expenses))}</p>
                         </div>
                       </div>
+
+                      {/* Educational note */}
+                      <div className="flex items-start gap-2 p-3 rounded-xl bg-white" style={{ boxShadow: CARD_SHADOW }}>
+                        <span className="text-sm">💡</span>
+                        <p className="text-[11px]" style={{ color: '#2D1B69' }}>Este precio cubre el costo del producto, tu ganancia de {pctGanancia}% y un 5% para gastos de tu negocio — exactamente el método 3C.</p>
+                      </div>
+
+                      {/* Register sale button */}
+                      <Button onClick={startSaleFromCalc} className="w-full h-12 rounded-xl text-white font-semibold" style={{ background: '#6B2FA0' }}>
+                        <ShoppingBag className="w-4 h-4 mr-2" /> Registrar esta venta →
+                      </Button>
                     </motion.div>
                   )}
                 </AnimatePresence>
