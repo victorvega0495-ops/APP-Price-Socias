@@ -83,8 +83,8 @@ export default {
           to: { height: "0" },
         },
         "pulse-gold": {
-          "0%, 100%": { boxShadow: "0 0 0 0 hsl(51 100% 50% / 0.4)" },
-          "50%": { boxShadow: "0 0 0 12px hsl(51 100% 50% / 0)" },
+          "0%, 100%": { boxShadow: "0 0 0 0 hsl(289 55% 63% / 0.4)" },
+          "50%": { boxShadow: "0 0 0 12px hsl(289 55% 63% / 0)" },
         },
         "slide-up": {
           from: { transform: "translateY(10px)", opacity: "0" },
