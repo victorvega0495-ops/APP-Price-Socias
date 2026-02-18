@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Phone, Plus, MessageCircle, CreditCard, AlertTriangle, Check, Clock } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
@@ -47,8 +48,12 @@ interface Purchase {
   purchase_date: string;
 }
 
+const DEFAULT_MSG_COBRANZA = 'Hola [nombre], te recuerdo amablemente que tienes un saldo pendiente de [monto] 🙏 ¿Cuándo podemos coordinar tu pago? ¡Gracias!';
+const DEFAULT_MSG_VENTA = 'Hola [nombre]! Te escribo porque acaban de llegar novedades que creo que te van a encantar 😍 ¿Te mando fotos?';
+const DEFAULT_MSG_SALUDO = 'Hola [nombre]! ¿Cómo estás? Espero que todo esté muy bien 😊 Cualquier cosa que necesites aquí estoy.';
+
 export default function Clients() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [clients, setClients] = useState<Client[]>([]);
@@ -64,6 +69,9 @@ export default function Clients() {
   const [isCredit, setIsCredit] = useState(false);
   const [creditDueDate, setCreditDueDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Bottom sheet state for phone action
+  const [phoneSheetClient, setPhoneSheetClient] = useState<Client | null>(null);
 
   const loadClients = async () => {
     if (!user) return;
@@ -95,11 +103,32 @@ export default function Clients() {
 
   const buildWhatsAppUrl = (phone: string, message: string) => `https://wa.me/52${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
 
-  const WhatsAppButton = ({ client, message }: { client: Client; message: string }) => {
-    if (!client.phone) {
-      return (<TooltipProvider><Tooltip><TooltipTrigger asChild><button disabled className="w-9 h-9 rounded-full flex items-center justify-center opacity-50 cursor-not-allowed" style={{ background: '#F0E6F6' }}><MessageCircle className="w-4 h-4" style={{ color: '#8a8a9a' }} /></button></TooltipTrigger><TooltipContent><p>Sin teléfono registrado</p></TooltipContent></Tooltip></TooltipProvider>);
+  const replaceVars = (template: string, clientName: string, monto?: number) => {
+    let msg = template.replace(/\[nombre\]/g, clientName);
+    if (monto !== undefined) msg = msg.replace(/\[monto\]/g, formatCurrency(monto));
+    return msg;
+  };
+
+  const openPhoneSheet = (client: Client, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPhoneSheetClient(client);
+  };
+
+  const sendWhatsAppAction = (action: 'cobrar' | 'vender' | 'saludar') => {
+    if (!phoneSheetClient?.phone) return;
+    const p = profile as any;
+    let template = '';
+    if (action === 'cobrar') {
+      template = p?.msg_cobranza || DEFAULT_MSG_COBRANZA;
+    } else if (action === 'vender') {
+      template = p?.msg_venta || DEFAULT_MSG_VENTA;
+    } else {
+      template = p?.msg_saludo || DEFAULT_MSG_SALUDO;
     }
-    return (<a href={buildWhatsAppUrl(client.phone, message)} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#6B2FA0' }} onClick={(e) => e.stopPropagation()}><MessageCircle className="w-4 h-4 text-white" /></a>);
+    const message = replaceVars(template, phoneSheetClient.name, phoneSheetClient.pending_balance || 0);
+    const url = buildWhatsAppUrl(phoneSheetClient.phone, message);
+    window.open(url, '_blank', 'noopener');
+    setPhoneSheetClient(null);
   };
 
   // --- DETAIL VIEW ---
@@ -108,7 +137,7 @@ export default function Clients() {
       <div>
         <div style={{ background: HEADER_GRADIENT, padding: '48px 20px 24px' }}>
           <button onClick={() => setSelectedClient(null)} className="text-sm font-medium mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>← Volver a clientas</button>
-          <h1 className="text-white" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '26px', fontWeight: 900 }}>{selectedClient.name}</h1>
+          <h1 className="text-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: '26px', fontWeight: 900 }}>{selectedClient.name}</h1>
           {selectedClient.phone && <p className="text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>{selectedClient.phone}</p>}
         </div>
         <div className="px-4 pt-5 pb-4 space-y-4" style={{ background: '#F5F5F7', minHeight: 'calc(100vh - 160px)' }}>
@@ -130,7 +159,7 @@ export default function Clients() {
                 <div key={p.id} className="bg-white rounded-2xl p-3" style={{ boxShadow: CARD_SHADOW }}>
                   <div className="flex justify-between items-start">
                     <div><p className="text-sm font-medium" style={{ color: '#2D1B69' }}>{p.description || 'Venta'}</p><p className="text-xs" style={{ color: '#8a8a9a' }}>{formatDate(p.purchase_date)}</p></div>
-                    <p className="font-semibold" style={{ color: '#6B2FA0', fontFamily: 'Nunito, sans-serif' }}>{formatCurrency(Number(p.amount))}</p>
+                    <p className="font-semibold" style={{ color: '#6B2FA0', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{formatCurrency(Number(p.amount))}</p>
                   </div>
                   {p.is_credit && (
                     <div className="mt-2 flex items-center justify-between">
@@ -168,7 +197,7 @@ export default function Clients() {
     <div>
       <div style={{ background: HEADER_GRADIENT, padding: '48px 20px 24px' }}>
         <div className="flex items-center justify-between">
-          <h1 className="text-white" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>Mis Clientas 👥</h1>
+          <h1 className="text-white" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>Mis Clientas 👥</h1>
           <Button onClick={() => setAddOpen(true)} size="sm" className="text-white rounded-xl" style={{ background: 'rgba(255,255,255,0.2)' }}><Plus className="w-4 h-4 mr-1" /> Agregar</Button>
         </div>
         {totalPending > 0 && <p className="text-sm mt-2" style={{ color: '#D4A0E8' }}>Cartera activa: {formatCurrency(totalPending)}</p>}
@@ -192,8 +221,6 @@ export default function Clients() {
             const daysAgo = c.last_purchase_date ? differenceInDays(today, parseISO(c.last_purchase_date)) : null;
             const isOverdue = c.credit_due_date_earliest && new Date(c.credit_due_date_earliest) < today;
             const overdueDays = c.credit_due_date_earliest ? differenceInDays(today, parseISO(c.credit_due_date_earliest)) : 0;
-            let waMessage = '';
-            if (filter === 'cobranza') waMessage = `Hola ${c.name}, te recuerdo amablemente que tienes un saldo pendiente de ${formatCurrency(c.pending_balance || 0)} 😊 ¿Cuándo podemos coordinar tu pago? ¡Gracias!`;
             return (
               <motion.div key={c.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="w-full bg-white rounded-2xl p-3 flex items-center justify-between" style={{ boxShadow: CARD_SHADOW }}>
                 <button onClick={() => selectClient(c)} className="flex-1 text-left">
@@ -212,8 +239,16 @@ export default function Clients() {
                   )}
                 </button>
                 <div className="flex items-center gap-2 ml-2">
-                  {filter === 'cobranza' && <WhatsAppButton client={c} message={waMessage} />}
-                  {filter === 'all' && c.phone && <Phone className="w-3.5 h-3.5" style={{ color: '#8a8a9a' }} />}
+                  {c.phone && (
+                    <button
+                      onClick={(e) => openPhoneSheet(c, e)}
+                      className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: '#6B2FA0' }}
+                    >
+                      <Phone className="w-4 h-4 text-white" />
+                    </button>
+                  )}
+                  {!c.phone && filter === 'all' && <Phone className="w-3.5 h-3.5" style={{ color: '#8a8a9a' }} />}
                 </div>
               </motion.div>
             );
@@ -231,6 +266,54 @@ export default function Clients() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Bottom Sheet — ¿Para qué le quieres hablar? */}
+      <Sheet open={!!phoneSheetClient} onOpenChange={(open) => { if (!open) setPhoneSheetClient(null); }}>
+        <SheetContent side="bottom" className="rounded-t-3xl px-5 pb-8">
+          <SheetHeader>
+            <SheetTitle className="text-left" style={{ color: '#2D1B69' }}>
+              ¿Para qué le quieres hablar a {phoneSheetClient?.name}?
+            </SheetTitle>
+          </SheetHeader>
+          <div className="space-y-3 mt-4">
+            {(phoneSheetClient?.pending_balance || 0) > 0 && (
+              <button
+                onClick={() => sendWhatsAppAction('cobrar')}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all active:scale-[0.98]"
+                style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}
+              >
+                <span className="text-2xl">💰</span>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: '#2D1B69' }}>Cobrarle</p>
+                  <p className="text-xs" style={{ color: '#8a8a9a' }}>Saldo pendiente: {formatCurrency(phoneSheetClient?.pending_balance || 0)}</p>
+                </div>
+              </button>
+            )}
+            <button
+              onClick={() => sendWhatsAppAction('vender')}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all active:scale-[0.98]"
+              style={{ background: '#F0E6F6', border: '1px solid #E8D5F5' }}
+            >
+              <span className="text-2xl">🛍️</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: '#2D1B69' }}>Venderle más</p>
+                <p className="text-xs" style={{ color: '#8a8a9a' }}>Comparte novedades</p>
+              </div>
+            </button>
+            <button
+              onClick={() => sendWhatsAppAction('saludar')}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all active:scale-[0.98]"
+              style={{ background: '#F0FDF4', border: '1px solid #BBF7D0' }}
+            >
+              <span className="text-2xl">👋</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: '#2D1B69' }}>Saludarla</p>
+                <p className="text-xs" style={{ color: '#8a8a9a' }}>Mantén la relación</p>
+              </div>
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
