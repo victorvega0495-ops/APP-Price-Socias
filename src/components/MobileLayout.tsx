@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, DollarSign, Users, ShoppingBag, Trophy, Plus } from 'lucide-react';
+import { Home, DollarSign, Users, ShoppingBag, Target, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,7 +8,7 @@ const tabs = [
   { to: '/finanzas', icon: DollarSign, label: 'Finanzas' },
   { to: '/vender', icon: ShoppingBag, label: 'Vender' },
   { to: '/clientas', icon: Users, label: 'Clientas' },
-  { to: '/mi-reto', icon: Trophy, label: 'Mi Reto' },
+  { to: '/mis-metas', icon: Target, label: 'Metas' },
 ];
 
 export default function MobileLayout({ children }: { children: React.ReactNode }) {
