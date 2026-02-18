@@ -197,6 +197,9 @@ export type Database = {
           created_at: string
           id: string
           metodologia: string | null
+          msg_cobranza: string | null
+          msg_saludo: string | null
+          msg_venta: string | null
           name: string
           partner_number: string | null
           pct_ahorro: number | null
@@ -212,6 +215,9 @@ export type Database = {
           created_at?: string
           id?: string
           metodologia?: string | null
+          msg_cobranza?: string | null
+          msg_saludo?: string | null
+          msg_venta?: string | null
           name: string
           partner_number?: string | null
           pct_ahorro?: number | null
@@ -227,6 +233,9 @@ export type Database = {
           created_at?: string
           id?: string
           metodologia?: string | null
+          msg_cobranza?: string | null
+          msg_saludo?: string | null
+          msg_venta?: string | null
           name?: string
           partner_number?: string | null
           pct_ahorro?: number | null

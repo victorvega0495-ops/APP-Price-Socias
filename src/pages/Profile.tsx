@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/format';
-import { AlertTriangle, LogOut, HelpCircle, Camera, Settings } from 'lucide-react';
+import { AlertTriangle, LogOut, HelpCircle, Camera, Settings, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -16,6 +17,10 @@ import { OnboardingFlow } from '@/pages/Onboarding';
 
 const HEADER_GRADIENT = 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)';
 const CARD_SHADOW = '0 2px 12px rgba(0,0,0,0.07)';
+
+const DEFAULT_MSG_COBRANZA = 'Hola [nombre], te recuerdo amablemente que tienes un saldo pendiente de [monto] 🙏 ¿Cuándo podemos coordinar tu pago? ¡Gracias!';
+const DEFAULT_MSG_VENTA = 'Hola [nombre]! Te escribo porque acaban de llegar novedades que creo que te van a encantar 😍 ¿Te mando fotos?';
+const DEFAULT_MSG_SALUDO = 'Hola [nombre]! ¿Cómo estás? Espero que todo esté muy bien 😊 Cualquier cosa que necesites aquí estoy.';
 
 export default function Profile() {
   const { user, profile, refreshProfile, signOut } = useAuth();
@@ -35,12 +40,21 @@ export default function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [reconfigOpen, setReconfigOpen] = useState(false);
 
+  // WhatsApp message templates
+  const [msgCobranza, setMsgCobranza] = useState(DEFAULT_MSG_COBRANZA);
+  const [msgVenta, setMsgVenta] = useState(DEFAULT_MSG_VENTA);
+  const [msgSaludo, setMsgSaludo] = useState(DEFAULT_MSG_SALUDO);
+
   useEffect(() => {
     if (profile) {
       setName(profile.name ?? ''); setPhone(profile.phone ?? ''); setPartnerNumber(profile.partner_number ?? '');
       setMetodologia(profile.metodologia ?? 'recomendada'); setPctReposicion(profile.pct_reposicion ?? 65);
       setPctGanancia(profile.pct_ganancia ?? 30); setPctAhorro(profile.pct_ahorro ?? 20);
       setAvatarPreview(profile.avatar_url ?? null);
+      const p = profile as any;
+      setMsgCobranza(p.msg_cobranza || DEFAULT_MSG_COBRANZA);
+      setMsgVenta(p.msg_venta || DEFAULT_MSG_VENTA);
+      setMsgSaludo(p.msg_saludo || DEFAULT_MSG_SALUDO);
     }
   }, [profile]);
 
@@ -81,7 +95,11 @@ export default function Profile() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    await supabase.from('profiles').update({ name, phone, partner_number: partnerNumber, metodologia, pct_reposicion: pctReposicion, pct_ganancia: pctGanancia, pct_ahorro: pctAhorro }).eq('user_id', user.id);
+    await supabase.from('profiles').update({
+      name, phone, partner_number: partnerNumber, metodologia,
+      pct_reposicion: pctReposicion, pct_ganancia: pctGanancia, pct_ahorro: pctAhorro,
+      msg_cobranza: msgCobranza, msg_venta: msgVenta, msg_saludo: msgSaludo,
+    } as any).eq('user_id', user.id);
     await refreshProfile();
     setSaving(false);
     toast({ title: '¡Perfil actualizado! ✅' });
@@ -99,12 +117,12 @@ export default function Profile() {
             <img src={avatarPreview} alt="Avatar" className="w-24 h-24 rounded-full object-cover" style={{ border: '4px solid rgba(255,255,255,0.3)' }} />
           ) : (
             <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #C06DD6, #9B59B6)', border: '4px solid rgba(255,255,255,0.3)' }}>
-              <span className="text-white font-bold text-2xl" style={{ fontFamily: 'Nunito, sans-serif' }}>{initials}</span>
+              <span className="text-white font-bold text-2xl font-nunito">{initials}</span>
             </div>
           )}
           {uploadingAvatar && <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center"><div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>}
         </div>
-        <h1 className="text-white mt-3" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '22px', fontWeight: 900 }}>{profile?.name || 'Socia'}</h1>
+        <h1 className="text-white mt-3 font-nunito" style={{ fontSize: '22px', fontWeight: 900 }}>{profile?.name || 'Socia'}</h1>
         {profile?.partner_number && <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Número de socia: {profile.partner_number}</p>}
         <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 text-sm font-medium mt-3 px-4 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)' }}>
           <Camera className="w-4 h-4" /> Cambiar foto
@@ -177,6 +195,46 @@ export default function Profile() {
               </motion.div>
             </motion.div>
           )}
+        </motion.div>
+
+        {/* WhatsApp message templates */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white rounded-2xl p-5 space-y-4" style={{ boxShadow: CARD_SHADOW }}>
+          <div className="flex items-center gap-2">
+            <MessageCircle className="w-4 h-4" style={{ color: '#6B2FA0' }} />
+            <h2 className="text-sm font-semibold" style={{ color: '#2D1B69' }}>Mis mensajes de WhatsApp</h2>
+          </div>
+          <p className="text-[11px]" style={{ color: '#8a8a9a' }}>Personaliza los mensajes que envías a tus clientas. Usa [nombre] y [monto] como variables.</p>
+
+          <div className="space-y-1">
+            <Label className="text-xs">💰 Mensaje de cobranza</Label>
+            <Textarea
+              value={msgCobranza}
+              onChange={e => setMsgCobranza(e.target.value)}
+              rows={3}
+              className="text-sm rounded-xl resize-none"
+              style={{ borderColor: '#E8D5F5' }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">🛍️ Mensaje de venta</Label>
+            <Textarea
+              value={msgVenta}
+              onChange={e => setMsgVenta(e.target.value)}
+              rows={3}
+              className="text-sm rounded-xl resize-none"
+              style={{ borderColor: '#E8D5F5' }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">👋 Mensaje de saludo</Label>
+            <Textarea
+              value={msgSaludo}
+              onChange={e => setMsgSaludo(e.target.value)}
+              rows={3}
+              className="text-sm rounded-xl resize-none"
+              style={{ borderColor: '#E8D5F5' }}
+            />
+          </div>
         </motion.div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full font-semibold h-12 rounded-xl text-white" style={{ background: 'linear-gradient(135deg, #C06DD6, #9B59B6)' }}>

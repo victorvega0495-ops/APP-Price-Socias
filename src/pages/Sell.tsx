@@ -32,6 +32,7 @@ interface ReceiptData {
   paymentAmount: number;
   firstPaymentDate: string | null;
   date: string;
+  paymentDates: string[];
 }
 
 // --- Category data ---
@@ -88,6 +89,11 @@ const PILL_INACTIVE = { background: 'transparent', color: 'rgba(255,255,255,0.7)
 const CARD_SHADOW = '0 2px 12px rgba(0,0,0,0.07)';
 const BTN_PRIMARY = { background: '#6B2FA0', color: 'white' };
 
+const formatDateEs = (dateStr: string) => {
+  const dt = new Date(dateStr + 'T12:00:00');
+  return dt.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
 export default function Sell() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -100,6 +106,8 @@ export default function Sell() {
   // Calculator state
   // ========================
   const [partnerPrice, setPartnerPrice] = useState(0);
+  const [calcSalePrice, setCalcSalePrice] = useState(''); // editable sale price
+  const [calcSaleManual, setCalcSaleManual] = useState(false);
   const [saleType, setSaleType] = useState<'cash' | 'credit'>('cash');
   const [creditCommission, setCreditCommission] = useState(10);
   const [numPayments, setNumPayments] = useState(1);
@@ -147,12 +155,34 @@ export default function Sell() {
   const calcBasePrice = partnerPrice > 0 ? Math.round(partnerPrice / pctReposicionDecimal) : 0;
   const incrementoSugerido = Math.round((1 / pctReposicionDecimal - 1) * 100);
   const pctProducto = Math.round(pctReposicionDecimal * 100);
-  const commissionAmount = saleType === 'credit' ? calcBasePrice * (creditCommission / 100) : 0;
-  const clientPrice = saleType === 'credit' ? calcBasePrice + commissionAmount : calcBasePrice;
+
+  // Editable sale price logic
+  const calcEditablePrice = calcSaleManual ? (Number(calcSalePrice) || 0) : calcBasePrice;
+  const calcEditableIncremento = partnerPrice > 0 ? Math.round(((calcEditablePrice / partnerPrice) - 1) * 100) : 0;
+
+  // Recalculate 3C based on editable price
+  const c3Product = calcEditablePrice * pctReposicionDecimal;
+  const c3Profit = calcEditablePrice * (pctGanancia / 100);
+  const c3Expenses = calcEditablePrice * 0.05;
+  const calcRealProfit = calcEditablePrice - partnerPrice;
+  const calcRealPct = calcEditablePrice > 0 ? Math.round((calcRealProfit / calcEditablePrice) * 100) : 0;
+
+  const commissionAmount = saleType === 'credit' ? calcEditablePrice * (creditCommission / 100) : 0;
+  const clientPrice = saleType === 'credit' ? calcEditablePrice + commissionAmount : calcEditablePrice;
   const calcPaymentAmount = saleType === 'credit' && numPayments > 1 ? clientPrice / numPayments : clientPrice;
-  const c3Product = calcBasePrice * pctReposicionDecimal;
-  const c3Profit = calcBasePrice * (pctGanancia / 100);
-  const c3Expenses = calcBasePrice * 0.05;
+
+  // Auto-update calcSalePrice when partnerPrice changes and not manual
+  useEffect(() => {
+    if (!calcSaleManual && partnerPrice > 0) {
+      setCalcSalePrice(calcBasePrice.toString());
+    } else if (partnerPrice <= 0) {
+      setCalcSalePrice('');
+    }
+  }, [partnerPrice, calcBasePrice, calcSaleManual]);
+
+  // Price validation
+  const calcPriceBelowRecommended = calcSaleManual && partnerPrice > 0 && calcEditablePrice < calcBasePrice;
+  const calcPriceOk = partnerPrice > 0 && calcEditablePrice >= calcBasePrice;
 
   // --- Registration totals ---
   const sumCost = items.reduce((s, i) => s + i.costPrice * i.quantity, 0);
@@ -161,14 +191,14 @@ export default function Sell() {
   const profit = totalCharged - sumCost;
   const margin = totalCharged > 0 ? (profit / totalCharged) * 100 : 0;
 
-  // Credit payment dates (every 15 days)
+  // Credit payment dates (every 30 days for receipt)
   const creditPaymentDates = useMemo(() => {
     if (regSaleType !== 'credit') return [];
     const dates: string[] = [];
     const today = new Date();
     for (let i = 1; i <= regNumPayments; i++) {
       const d = new Date(today);
-      d.setDate(today.getDate() + i * 15);
+      d.setDate(today.getDate() + i * 30);
       dates.push(d.toISOString().split('T')[0]);
     }
     return dates;
@@ -255,12 +285,14 @@ export default function Sell() {
       setSaleType('cash');
       setCreditCommission(10);
       setNumPayments(1);
+      setCalcSalePrice('');
+      setCalcSaleManual(false);
     }
   };
 
   const startSaleFromCalc = () => {
     const cost = partnerPrice;
-    const price = calcBasePrice;
+    const price = calcEditablePrice;
     setMode('direct');
     setAddingItem(true);
     setItemCostInput(cost > 0 ? cost.toString() : '');
@@ -349,6 +381,7 @@ export default function Sell() {
         paymentAmount: regPaymentAmt,
         firstPaymentDate: firstPayDate,
         date: now.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }),
+        paymentDates: [...creditPaymentDates],
       };
 
       // Show celebration first
@@ -371,12 +404,11 @@ export default function Sell() {
     if (!receipt) return '';
     const itemLines = receipt.items.map(i => `${i.icon} ${i.category} x${i.quantity} — ${formatCurrency(i.salePrice * i.quantity)}`).join('%0A');
     let text = `🧾 Recibo de venta%0A%0AClienta: ${receipt.clientName}%0A%0A${itemLines}%0A%0ATotal: ${formatCurrencyDecimals(receipt.totalCharged)}`;
-    if (receipt.isCredit && receipt.numPayments > 0) {
-      text += `%0A${receipt.numPayments} pagos de ${formatCurrencyDecimals(receipt.paymentAmount)}`;
-      if (receipt.firstPaymentDate) {
-        const fp = new Date(receipt.firstPaymentDate + 'T12:00:00');
-        text += `%0A1er pago: ${fp.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-      }
+    if (receipt.isCredit && receipt.numPayments > 0 && receipt.paymentDates.length > 0) {
+      text += `%0A%0A📅 Plan de pagos:`;
+      receipt.paymentDates.forEach((d, i) => {
+        text += `%0APago ${i + 1}: ${formatCurrencyDecimals(receipt.paymentAmount)} — ${formatDateEs(d)}`;
+      });
     }
     const sociaName = profile?.name || '';
     const sociaPhone = profile?.phone || '';
@@ -429,7 +461,7 @@ export default function Sell() {
   };
 
   // ========================
-  // RECEIPT
+  // RECEIPT — with full payment breakdown
   // ========================
   const renderReceipt = () => {
     if (!receipt) return null;
@@ -455,14 +487,15 @@ export default function Sell() {
             ))}
           </div>
           <p className="text-2xl font-bold pt-2 text-center font-nunito">Total: {formatCurrencyDecimals(receipt.totalCharged)}</p>
-          {receipt.isCredit && receipt.numPayments > 0 && (
-            <p className="text-center opacity-80">
-              {receipt.numPayments} pagos de {formatCurrencyDecimals(receipt.paymentAmount)}
-              {receipt.firstPaymentDate && (() => {
-                const fp = new Date(receipt.firstPaymentDate + 'T12:00:00');
-                return ` — 1er pago: ${fp.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-              })()}
-            </p>
+          {receipt.isCredit && receipt.paymentDates.length > 0 && (
+            <div className="pt-2 space-y-1">
+              <p className="text-xs font-semibold opacity-90">📅 Plan de pagos:</p>
+              {receipt.paymentDates.map((d, i) => (
+                <p key={i} className="text-xs opacity-80">
+                  Pago {i + 1}: {formatCurrencyDecimals(receipt.paymentAmount)} — {formatDateEs(d)}
+                </p>
+              ))}
+            </div>
           )}
           <p className="opacity-60 text-xs text-center">{receipt.date}</p>
           <div className="border-t border-white/20 mt-3 pt-3 text-center space-y-0.5">
@@ -723,10 +756,9 @@ export default function Sell() {
               {creditPaymentDates.length > 0 && totalCharged > 0 && (
                 <div className="text-xs space-y-0.5 pt-1" style={{ color: '#8a8a9a' }}>
                   <p className="font-semibold" style={{ color: '#6B2FA0' }}>{regNumPayments} pagos de {formatCurrencyDecimals(regPaymentAmt)}</p>
-                  {creditPaymentDates.map((d, i) => {
-                    const dt = new Date(d + 'T12:00:00');
-                    return <p key={i}>Pago {i + 1}: {dt.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</p>;
-                  })}
+                  {creditPaymentDates.map((d, i) => (
+                    <p key={i}>Pago {i + 1}: {formatDateEs(d)}</p>
+                  ))}
                 </div>
               )}
             </motion.div>
@@ -834,12 +866,48 @@ export default function Sell() {
                       <Input
                         type="number"
                         value={partnerPrice || ''}
-                        onChange={e => setPartnerPrice(Number(e.target.value) || 0)}
+                        onChange={e => { setPartnerPrice(Number(e.target.value) || 0); setCalcSaleManual(false); }}
                         placeholder="0"
                         className="pl-7"
                       />
                     </div>
                   </div>
+
+                  {/* Editable sale price */}
+                  {partnerPrice > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium" style={{ color: '#2D1B69' }}>Precio de venta ($)</Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: '#8a8a9a' }}>$</span>
+                        <Input
+                          type="number"
+                          value={calcSalePrice}
+                          onChange={e => { setCalcSalePrice(e.target.value); setCalcSaleManual(true); }}
+                          placeholder="0"
+                          className="pl-7"
+                        />
+                      </div>
+                      {/* Incremento actual */}
+                      <p className="text-[10px] mt-1" style={{ color: '#8a8a9a' }}>
+                        Incremento: {calcEditableIncremento}% sobre costo
+                      </p>
+                      {/* Validation alerts */}
+                      {calcPriceBelowRecommended && (
+                        <div className="mt-2 p-2.5 rounded-xl" style={{ background: 'rgba(192,109,214,0.1)' }}>
+                          <p className="text-[11px] font-medium" style={{ color: '#C06DD6' }}>
+                            ⚠️ Este precio está por debajo de tu metodología 3C. Tu ganancia sería solo {formatCurrency(calcRealProfit)} ({calcRealPct}%) en lugar del {pctGanancia}% que configuraste.
+                          </p>
+                        </div>
+                      )}
+                      {calcPriceOk && (
+                        <div className="mt-2 p-2.5 rounded-xl" style={{ background: 'rgba(34,197,94,0.1)' }}>
+                          <p className="text-[11px] font-medium" style={{ color: 'hsl(142,71%,35%)' }}>
+                            ✅ Precio correcto para tu metodología
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Suggested increment info */}
                   {partnerPrice > 0 && (
@@ -902,7 +970,7 @@ export default function Sell() {
                         <p className="text-xs opacity-70 font-medium">Cóbrale a tu clienta</p>
                         <p className="text-3xl font-bold font-nunito">{formatCurrencyDecimals(clientPrice)}</p>
                         <p className="text-xs opacity-60 mt-1">
-                          Tu ganancia: {formatCurrency(Math.round(c3Profit))} ({pctGanancia}% de {formatCurrency(calcBasePrice)})
+                          Tu ganancia: {formatCurrency(Math.round(calcRealProfit))} ({calcRealPct}% de {formatCurrency(calcEditablePrice)})
                         </p>
                         {saleType === 'credit' && numPayments > 1 && (
                           <p className="text-sm font-semibold mt-2" style={{ color: '#E8A5F0' }}>
