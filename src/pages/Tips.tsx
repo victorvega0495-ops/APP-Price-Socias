@@ -57,7 +57,8 @@ const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Vierne
 interface ClientInfo { id: string; name: string; phone: string | null; }
 
 export default function Tips() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const pctGanancia = (profile?.pct_ganancia ?? 30) / 100;
   const { toast } = useToast();
   const [clients, setClients] = useState<ClientInfo[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
@@ -227,9 +228,10 @@ export default function Tips() {
     );
   }
 
-  const marginColor = stats.avgMargin === null ? 'text-muted-foreground' : stats.avgMargin >= 54 ? 'text-green-600' : stats.avgMargin >= 40 ? 'text-yellow-600' : 'text-red-600';
-  const marginIcon = stats.avgMargin === null ? '' : stats.avgMargin >= 54 ? '✅' : stats.avgMargin >= 40 ? '⚠️' : '🔴';
-  const marginLabel = stats.avgMargin === null ? '' : stats.avgMargin >= 54 ? '¡Excelente margen!' : stats.avgMargin >= 40 ? 'Puedes mejorar' : 'Revisa tus precios';
+  const targetMargin = Math.round(pctGanancia * 100);
+  const marginColor = stats.avgMargin === null ? 'text-muted-foreground' : stats.avgMargin >= targetMargin ? 'text-green-600' : stats.avgMargin >= targetMargin - 14 ? 'text-yellow-600' : 'text-red-600';
+  const marginIcon = stats.avgMargin === null ? '' : stats.avgMargin >= targetMargin ? '✅' : stats.avgMargin >= targetMargin - 14 ? '⚠️' : '🔴';
+  const marginLabel = stats.avgMargin === null ? '' : stats.avgMargin >= targetMargin ? '¡Excelente margen!' : stats.avgMargin >= targetMargin - 14 ? 'Puedes mejorar' : 'Revisa tus precios';
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-6 space-y-8">

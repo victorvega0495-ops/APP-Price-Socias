@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, History, Pencil, ChevronDown, ChevronUp, Star, AlertTriangle, CheckCircle2, MinusCircle } from 'lucide-react';
+import { TrendingUp, History, Pencil, Star, AlertTriangle, CheckCircle2, MinusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -35,7 +35,7 @@ interface PurchaseRow {
 }
 
 export default function Finances() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const now = new Date();
   const [year] = useState(now.getFullYear());
@@ -47,8 +47,6 @@ export default function Finances() {
     { week: 4, total_sales: 0, product_cost: 0 },
   ]);
   const [monthlyGoal, setMonthlyGoal] = useState(0);
-  const [showWeekEditor, setShowWeekEditor] = useState(false);
-  const [weekConflicts, setWeekConflicts] = useState<Record<number, { show: boolean; manual: number; real: number }>>({});
 
   // Historial
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
@@ -56,35 +54,65 @@ export default function Finances() {
   const [editingPurchase, setEditingPurchase] = useState<PurchaseRow | null>(null);
   const [editForm, setEditForm] = useState({ amount: 0, description: '', credit_due_date: '' });
 
+  // Profile-based percentages
+  const pctReposicion = (profile?.pct_reposicion ?? 65) / 100;
+  const pctGanancia = (profile?.pct_ganancia ?? 30) / 100;
+  const pctAhorro = (profile?.pct_ahorro ?? 20) / 100;
+  const pctGastos = 1 - pctReposicion - pctGanancia;
+  const pctNecesidades = (1 - pctAhorro) * 0.625;
+  const pctDeseos = (1 - pctAhorro) * 0.375;
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  const weekRanges: Record<number, [number, number]> = {
+    1: [1, 7],
+    2: [8, 14],
+    3: [15, 21],
+    4: [22, daysInMonth],
+  };
+
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [weekRes, goalRes] = await Promise.all([
-        supabase
-          .from('weekly_finances')
-          .select('week, total_sales, product_cost')
-          .eq('user_id', user.id)
-          .eq('year', year)
-          .eq('month', month),
-        supabase
-          .from('monthly_goals')
-          .select('target_income')
-          .eq('user_id', user.id)
-          .eq('year', year)
-          .eq('month', month),
-      ]);
+      // Load monthly goal
+      const { data: goalRes } = await supabase
+        .from('monthly_goals')
+        .select('target_income')
+        .eq('user_id', user.id)
+        .eq('year', year)
+        .eq('month', month);
 
-      if (weekRes.data && weekRes.data.length > 0) {
-        const mapped = [1, 2, 3, 4].map(w => {
-          const found = weekRes.data.find(d => d.week === w);
-          return { week: w, total_sales: found ? Number(found.total_sales) : 0, product_cost: found ? Number(found.product_cost) : 0 };
-        });
-        setWeeks(mapped);
+      if (goalRes && goalRes.length > 0) {
+        setMonthlyGoal(Number(goalRes[0].target_income));
       }
 
-      if (goalRes.data && goalRes.data.length > 0) {
-        setMonthlyGoal(Number(goalRes.data[0].target_income));
-      }
+      // Auto-calculate weekly data from purchases
+      const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+      const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+
+      const { data: purchasesData } = await supabase
+        .from('purchases')
+        .select('amount, cost_price, purchase_date')
+        .eq('user_id', user.id)
+        .gte('purchase_date', monthStart)
+        .lte('purchase_date', monthEnd);
+
+      const computed: WeekData[] = [1, 2, 3, 4].map(w => {
+        const [startDay, endDay] = weekRanges[w];
+        const startDate = `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+        const endDate = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+
+        const weekPurchases = (purchasesData || []).filter(p =>
+          p.purchase_date >= startDate && p.purchase_date <= endDate
+        );
+
+        const total_sales = weekPurchases.reduce((s, p) => s + Number(p.amount), 0);
+        const product_cost = weekPurchases.reduce((s, p) => s + (p.cost_price ? Number(p.cost_price) : 0), 0);
+
+        return { week: w, total_sales, product_cost };
+      });
+
+      setWeeks(computed);
     };
     load();
   }, [user, year, month]);
@@ -102,63 +130,6 @@ export default function Finances() {
         client_name: p.clients?.name || 'Sin clienta',
       })));
     }
-  };
-  const daysInMonth = new Date(year, month, 0).getDate();
-
-  const doSaveWeek = async (weekData: WeekData, totalSalesOverride?: number) => {
-    if (!user) return;
-    const finalSales = totalSalesOverride !== undefined ? totalSalesOverride : weekData.total_sales;
-    const { error } = await supabase
-      .from('weekly_finances')
-      .upsert({
-        user_id: user.id, year, month,
-        week: weekData.week,
-        total_sales: finalSales,
-        product_cost: weekData.product_cost,
-      }, { onConflict: 'user_id,year,month,week' });
-    if (error) {
-      toast({ title: 'Error al guardar', variant: 'destructive' });
-    } else {
-      // Update local state if override
-      if (totalSalesOverride !== undefined) {
-        setWeeks(prev => prev.map(w => w.week === weekData.week ? { ...w, total_sales: finalSales } : w));
-      }
-      setWeekConflicts(prev => ({ ...prev, [weekData.week]: { show: false, manual: 0, real: 0 } }));
-      toast({ title: '¡Guardado! ✅' });
-    }
-  };
-
-  const saveWeek = async (weekData: WeekData) => {
-    if (!user) return;
-    // Calculate date range for this week
-    const weekRanges: Record<number, [number, number]> = {
-      1: [1, 7],
-      2: [8, 14],
-      3: [15, 21],
-      4: [22, daysInMonth],
-    };
-    const [startDay, endDay] = weekRanges[weekData.week] || [1, 7];
-    const startDate = `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
-    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
-
-    const { data: purchaseData } = await supabase
-      .from('purchases')
-      .select('amount')
-      .eq('user_id', user.id)
-      .gte('purchase_date', startDate)
-      .lte('purchase_date', endDate);
-
-    const realTotal = purchaseData?.reduce((s, p) => s + Number(p.amount), 0) || 0;
-
-    if (realTotal > 0 && Math.abs(weekData.total_sales - realTotal) > 50) {
-      setWeekConflicts(prev => ({
-        ...prev,
-        [weekData.week]: { show: true, manual: weekData.total_sales, real: realTotal },
-      }));
-      return;
-    }
-
-    await doSaveWeek(weekData);
   };
 
   const openDetail = (p: PurchaseRow) => {
@@ -220,22 +191,29 @@ export default function Finances() {
   const weeksWithData = weeks.filter(w => w.total_sales > 0);
   const avgWeekly = weeksWithData.length > 0 ? monthTotal / weeksWithData.length : 0;
   const bestWeek = weeksWithData.length > 0 ? weeksWithData.reduce((best, w) => w.total_sales > best.total_sales ? w : best, weeksWithData[0]) : null;
-  const salesGoal = monthlyGoal > 0 ? monthlyGoal / 0.30 : 0;
+  const salesGoal = monthlyGoal > 0 ? monthlyGoal / pctGanancia : 0;
   const goalProgress = salesGoal > 0 ? Math.min(100, Math.round((monthTotal / salesGoal) * 100)) : 0;
 
   // 3C breakdown
-  const reposicion = monthTotal * 0.65;
-  const ganancia = monthTotal * 0.30;
-  const gastos = monthTotal * 0.05;
+  const reposicion = monthTotal * pctReposicion;
+  const ganancia = monthTotal * pctGanancia;
+  const gastos = monthTotal * pctGastos;
 
-  // 50-30-20 of ganancia
-  const necesidades = ganancia * 0.50;
-  const deseos = ganancia * 0.30;
-  const ahorro = ganancia * 0.20;
+  // Breakdown of ganancia
+  const necesidades = ganancia * pctNecesidades;
+  const deseos = ganancia * pctDeseos;
+  const ahorro = ganancia * pctAhorro;
 
-  // Days remaining in month (daysInMonth also used in saveWeek above)
+  // Days remaining in month
   const today = now.getDate();
   const daysRemaining = Math.max(1, daysInMonth - today);
+
+  const pctReposicionLabel = Math.round(pctReposicion * 100);
+  const pctGananciaLabel = Math.round(pctGanancia * 100);
+  const pctGastosLabel = Math.round(pctGastos * 100);
+  const pctNecesidadesLabel = Math.round(pctNecesidades * 100);
+  const pctDeseosLabel = Math.round(pctDeseos * 100);
+  const pctAhorroLabel = Math.round(pctAhorro * 100);
 
   return (
     <div className="px-4 pt-6 pb-4">
@@ -281,7 +259,7 @@ export default function Finances() {
                   <span>Meta de ganancia: {formatCurrency(monthlyGoal)}</span>
                 </div>
                 <Progress value={goalProgress} className="h-2 bg-primary-foreground/20 [&>div]:bg-gold" />
-                <p className="text-[10px] opacity-50 mt-1">Tu ganancia es el 30% de tus ventas totales</p>
+                <p className="text-[10px] opacity-50 mt-1">Tu ganancia es el {pctGananciaLabel}% de tus ventas totales</p>
                 {monthTotal < salesGoal && (
                   <p className="text-[10px] opacity-70 mt-1">
                     Necesitas vender {formatCurrency(Math.ceil((salesGoal - monthTotal) / daysRemaining))} por día para llegar
@@ -296,21 +274,21 @@ export default function Finances() {
             <h3 className="text-sm font-semibold text-foreground mb-2">Desglose 3C del mes</h3>
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-green-700 dark:text-green-400 font-medium">Producto / CrediPrice 65%</p>
+                <p className="text-[10px] text-green-700 dark:text-green-400 font-medium">Producto / CrediPrice {pctReposicionLabel}%</p>
                 <p className="text-sm font-bold text-green-800 dark:text-green-300 mt-1">{formatCurrency(reposicion)}</p>
               </div>
               <div className="bg-card border border-border rounded-xl p-3 text-center bg-gradient-navy">
-                <p className="text-[10px] text-primary-foreground/70 font-medium">Ganancia 30%</p>
+                <p className="text-[10px] text-primary-foreground/70 font-medium">Ganancia {pctGananciaLabel}%</p>
                 <p className="text-sm font-bold text-primary-foreground mt-1">{formatCurrency(ganancia)}</p>
               </div>
               <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-orange-700 dark:text-orange-400 font-medium">Gastos 5%</p>
+                <p className="text-[10px] text-orange-700 dark:text-orange-400 font-medium">Gastos {pctGastosLabel}%</p>
                 <p className="text-sm font-bold text-orange-800 dark:text-orange-300 mt-1">{formatCurrency(gastos)}</p>
               </div>
             </div>
           </motion.div>
 
-          {/* ── Sección 3: 50-30-20 de ganancia ── */}
+          {/* ── Sección 3: Distribución de ganancia ── */}
           {ganancia > 0 && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-xl p-4 shadow-card">
               <h3 className="text-sm font-semibold text-foreground mb-3">Tu ganancia: {formatCurrency(ganancia)}</h3>
@@ -318,21 +296,21 @@ export default function Finances() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-navy" />
-                    <span className="text-xs text-muted-foreground">50% Necesidades</span>
+                    <span className="text-xs text-muted-foreground">{pctNecesidadesLabel}% Necesidades</span>
                   </div>
                   <span className="text-sm font-semibold">{formatCurrency(necesidades)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-gold" />
-                    <span className="text-xs text-muted-foreground">30% Deseos</span>
+                    <span className="text-xs text-muted-foreground">{pctDeseosLabel}% Deseos</span>
                   </div>
                   <span className="text-sm font-semibold">{formatCurrency(deseos)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Star className="w-3 h-3 text-gold" />
-                    <span className="text-xs text-muted-foreground">20% Ahorro / Sueños</span>
+                    <span className="text-xs text-muted-foreground">{pctAhorroLabel}% Ahorro / Sueños</span>
                   </div>
                   <span className="text-sm font-bold text-navy">{formatCurrency(ahorro)}</span>
                 </div>
@@ -345,14 +323,14 @@ export default function Finances() {
             </motion.div>
           )}
 
-          {/* ── Sección 4: Semáforo por semana ── */}
+          {/* ── Sección 4: Semáforo por semana (auto-calculado) ── */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <h3 className="text-sm font-semibold text-foreground mb-2">Semáforo semanal</h3>
             <div className="space-y-2">
               {weeks.map((w) => {
                 const hasData = w.total_sales > 0;
-                const isHealthy = hasData && w.total_sales * 0.65 >= w.product_cost;
-                const isUnhealthy = hasData && w.total_sales * 0.65 < w.product_cost;
+                const isHealthy = hasData && w.total_sales * pctReposicion >= w.product_cost;
+                const isUnhealthy = hasData && w.total_sales * pctReposicion < w.product_cost;
 
                 return (
                   <div key={w.week} className={`flex items-center gap-3 rounded-xl p-3 border ${
@@ -374,7 +352,7 @@ export default function Finances() {
                           Venta: {formatCurrency(w.total_sales)} · Costo: {formatCurrency(w.product_cost)}
                         </p>
                       ) : (
-                        <p className="text-[10px] text-muted-foreground">Sin datos</p>
+                        <p className="text-[10px] text-muted-foreground">Sin datos — Registra tus ventas para ver tu semáforo</p>
                       )}
                     </div>
                     {isUnhealthy && (
@@ -386,101 +364,6 @@ export default function Finances() {
             </div>
           </motion.div>
 
-          {/* ── Sección 5: Editor de semanas ── */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <Button
-              variant="outline"
-              onClick={() => setShowWeekEditor(!showWeekEditor)}
-              className="w-full justify-between text-xs h-10 rounded-xl"
-            >
-              <span>✏️ Actualizar mis semanas</span>
-              {showWeekEditor ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </Button>
-
-            <AnimatePresence>
-              {showWeekEditor && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-3 pt-3">
-                    {weeks.map((w, i) => (
-                      <div key={w.week} className="bg-card rounded-xl p-4 shadow-card">
-                        <h4 className="text-xs font-semibold text-foreground mb-2">Semana {w.week}</h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-[10px]">Venta total</Label>
-                            <Input
-                              type="number"
-                              value={w.total_sales || ''}
-                              onChange={(e) => {
-                                const updated = [...weeks];
-                                updated[i] = { ...w, total_sales: Number(e.target.value) || 0 };
-                                setWeeks(updated);
-                              }}
-                              placeholder="$0"
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-[10px]">Costo producto</Label>
-                            <Input
-                              type="number"
-                              value={w.product_cost || ''}
-                              onChange={(e) => {
-                                const updated = [...weeks];
-                                updated[i] = { ...w, product_cost: Number(e.target.value) || 0 };
-                                setWeeks(updated);
-                              }}
-                              placeholder="$0"
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => saveWeek(w)}
-                          className="mt-2 w-full bg-navy text-primary-foreground h-8 text-xs rounded-lg"
-                        >
-                          Guardar semana {w.week}
-                        </Button>
-
-                        {/* Week conflict alert */}
-                        {weekConflicts[w.week]?.show && (
-                          <div className="mt-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3 space-y-2">
-                            <p className="text-xs text-yellow-800 dark:text-yellow-300">
-                              ⚠️ Tu registro ({formatCurrency(weekConflicts[w.week].manual)}) no coincide con tus ventas registradas ({formatCurrency(weekConflicts[w.week].real)}). ¿Cuál es el correcto?
-                            </p>
-                            <Button
-                              size="sm"
-                              onClick={() => doSaveWeek(w, weekConflicts[w.week].real)}
-                              className="w-full bg-navy text-primary-foreground h-8 text-xs rounded-lg"
-                            >
-                              Usar mis transacciones ({formatCurrency(weekConflicts[w.week].real)})
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => doSaveWeek(w)}
-                              className="w-full h-8 text-xs rounded-lg"
-                            >
-                              Mantener mi cifra ({formatCurrency(weekConflicts[w.week].manual)})
-                            </Button>
-                            <p className="text-[10px] text-muted-foreground">
-                              💡 Registra todas tus ventas en 'Vender' para mantener tu historial al día
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
         </TabsContent>
 
         {/* ════════ Tab: Historial ════════ */}
