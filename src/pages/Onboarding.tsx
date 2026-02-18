@@ -181,6 +181,12 @@ export function OnboardingFlow({ skipWelcome = false, onComplete }: OnboardingFl
                   <span className="text-xl font-black font-nunito" style={{ color: '#6B2FA0' }}>{pctGanancia}%</span>
                 </div>
                 <Slider value={[pctGanancia]} onValueChange={([v]) => setPctGanancia(v)} min={10} max={50} step={1} />
+                {pctGanancia > 30 && (
+                  <div className="flex items-start gap-2 p-2 rounded-lg" style={{ background: '#FFF3E0' }}>
+                    <span className="text-sm">⚠️</span>
+                    <p className="text-[11px]" style={{ color: '#2D1B69' }}>Recomendamos al menos 5% para gastos de tu negocio (envíos, bolsas, etc.). Con {pctGanancia}% de ganancia tu reposición baja a {100 - pctGanancia - 5}%.</p>
+                  </div>
+                )}
                 {/* Incremento dinámico */}
                 <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: incrementoMsg.color + '15' }}>
                   <span className="text-lg">{incrementoMsg.icon}</span>

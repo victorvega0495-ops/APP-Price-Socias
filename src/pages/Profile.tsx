@@ -147,6 +147,12 @@ export default function Profile() {
                 <div className="flex items-center justify-between"><Label className="text-xs">Tu ganancia personal</Label><span className="text-xs font-bold" style={{ color: '#2D1B69' }}>{pctGanancia}%</span></div>
                 <Slider value={[pctGanancia]} onValueChange={([v]) => setPctGanancia(v)} min={10} max={40} step={1} />
                 <p className="text-[11px]" style={{ color: '#8a8a9a' }}>Gastos del negocio: {pctGastos}%</p>
+                {pctGastos < 5 && (
+                  <div className="flex items-start gap-2 rounded-lg p-2" style={{ background: '#FFF3E0' }}>
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#F59E0B' }} />
+                    <p className="text-[11px]" style={{ color: '#2D1B69' }}>⚠️ Recomendamos al menos 5% para gastos de tu negocio (envíos, bolsas, etc.)</p>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between"><Label className="text-xs">De tu ganancia, ¿cuánto ahorras?</Label><span className="text-xs font-bold" style={{ color: '#2D1B69' }}>{pctAhorro}%</span></div>

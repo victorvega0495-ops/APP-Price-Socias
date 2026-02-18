@@ -136,7 +136,7 @@ export default function Clients() {
                     <div className="mt-2 flex items-center justify-between">
                       <span className={`text-xs font-medium flex items-center gap-1 ${p.credit_paid ? 'text-green-600' : isOverdue ? 'text-destructive' : ''}`} style={!p.credit_paid && !isOverdue ? { color: '#6B2FA0' } : {}}>
                         {p.credit_paid ? <Check className="w-3 h-3" /> : isOverdue ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                        {p.credit_paid ? 'Pagado' : isOverdue ? `Vencido (${formatDate(p.credit_due_date)})` : `Vence: ${formatDate(p.credit_due_date)}`}
+                        {p.credit_paid ? 'Pagado' : isOverdue ? `Vencido (${formatDate(p.credit_due_date)})` : `Vence: ${p.credit_due_date ? formatDate(p.credit_due_date) : 'Por acordar'}`}
                       </span>
                       {!p.credit_paid && <Button size="sm" variant="outline" onClick={() => markAsPaid(p.id)} className="h-7 text-xs">Marcar pagado</Button>}
                     </div>
