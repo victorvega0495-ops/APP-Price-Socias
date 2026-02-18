@@ -56,7 +56,7 @@ export default function Auth() {
               style={{ filter: 'brightness(0) invert(1)' }}
             />
             <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.7)' }}>App para Socias</p>
-            <h1 className="text-2xl font-bold text-white mt-2" style={{ fontFamily: 'Nunito, sans-serif' }}>Mi Negocio Price</h1>
+            <h1 className="text-2xl font-bold text-white mt-2 nunito">Mi Negocio Price</h1>
             <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Tu herramienta para el Reto 0 a 10,000</p>
           </div>
 

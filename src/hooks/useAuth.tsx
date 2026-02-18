@@ -36,19 +36,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .select('name, phone, partner_number, metodologia, pct_reposicion, pct_ganancia, pct_ahorro, avatar_url')
       .eq('user_id', userId)
       .single();
-    if (data) {
-      const d = data as any;
-      setProfile({
-        name: d.name ?? '',
-        phone: d.phone ?? '',
-        partner_number: d.partner_number ?? '',
-        metodologia: d.metodologia ?? null,
-        pct_reposicion: Number(d.pct_reposicion ?? 65),
-        pct_ganancia: Number(d.pct_ganancia ?? 30),
-        pct_ahorro: Number(d.pct_ahorro ?? 20),
-        avatar_url: d.avatar_url ?? null,
+    if (!data) {
+      await supabase.from('profiles').insert({
+        user_id: userId,
+        name: 'Socia',
+        metodologia: null,
+        pct_reposicion: 65,
+        pct_ganancia: 30,
+        pct_ahorro: 20,
       });
+      setProfile({
+        name: '',
+        phone: '',
+        partner_number: '',
+        metodologia: null,
+        pct_reposicion: 65,
+        pct_ganancia: 30,
+        pct_ahorro: 20,
+        avatar_url: null,
+      });
+      return;
     }
+    const d = data as any;
+    setProfile({
+      name: d.name ?? '',
+      phone: d.phone ?? '',
+      partner_number: d.partner_number ?? '',
+      metodologia: d.metodologia ?? null,
+      pct_reposicion: Number(d.pct_reposicion ?? 65),
+      pct_ganancia: Number(d.pct_ganancia ?? 30),
+      pct_ahorro: Number(d.pct_ahorro ?? 20),
+      avatar_url: d.avatar_url ?? null,
+    });
   };
 
   const refreshProfile = async () => {
