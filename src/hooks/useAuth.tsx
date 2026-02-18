@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         name: d.name ?? '',
         phone: d.phone ?? '',
         partner_number: d.partner_number ?? '',
-        metodologia: d.metodologia ?? 'recomendada',
+        metodologia: d.metodologia ?? null,
         pct_reposicion: Number(d.pct_reposicion ?? 65),
         pct_ganancia: Number(d.pct_ganancia ?? 30),
         pct_ahorro: Number(d.pct_ahorro ?? 20),
