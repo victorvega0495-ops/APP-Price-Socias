@@ -218,12 +218,11 @@ export default function Dashboard() {
 
   const metaVentas = monthlyTarget > 0 ? monthlyTarget / margenPromedio : 0;
   const goalProgress = metaVentas > 0 ? Math.min(100, (totalRealMes / metaVentas) * 100) : 0;
-  const gananciaAcumulada = totalRealMes * margenPromedio;
+  const gananciaAcumulada = totalRealMes * pctGanancia;
 
   const goalsWithProgress = activeGoals.map(g => {
-    const pct = g.monthly_sales_needed && g.monthly_sales_needed > 0
-      ? Math.min(100, (totalRealMes / g.monthly_sales_needed) * 100)
-      : progressPercentage(data.totalSales, g.target_amount);
+    const gananciaForGoal = totalRealMes * pctGanancia;
+    const pct = Math.min(100, (gananciaForGoal / g.target_amount) * 100);
     const daysLeft = daysRemaining(g.deadline);
     return { ...g, pct, daysLeft };
   }).sort((a, b) => b.pct - a.pct);
@@ -281,9 +280,10 @@ export default function Dashboard() {
         style={{ background: 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)' }}
       >
         {/* UM Badge */}
-        <div className="flex items-center gap-2 mb-4 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
-          <img src="/logo-um.png" alt="Universidad de la Mujer" className="h-10 object-contain" />
-          <span className="font-nunito font-semibold" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Universidad de la Mujer</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <img src="/logo-um.png" alt="UM" style={{ height: '28px', objectFit: 'contain' }} />
+          <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.3)' }} />
+          <img src="/logo-price.png" alt="Price Shoes" style={{ height: '24px', objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.85 }} />
         </div>
 
         {/* Profile row */}
@@ -442,7 +442,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                    <span className="font-semibold text-white">{formatCurrency(data.totalSales)}</span> de {formatCurrency(primaryGoal.target_amount)}
+                    <span className="font-semibold text-white">{formatCurrency(gananciaAcumulada)}</span> de {formatCurrency(primaryGoal.target_amount)} en ganancia
                   </p>
                   <div className="flex items-center gap-1">
                     <Clock className="w-3 h-3" style={{ color: '#E8A5F0' }} />
@@ -480,7 +480,7 @@ export default function Dashboard() {
                             <div className="h-full rounded-full" style={{ width: `${g.pct}%`, background: 'rgba(192,109,214,0.7)' }} />
                           </div>
                           <p className="text-[10px] mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                            {formatCurrency(data.totalSales)} de {formatCurrency(g.target_amount)} · {Math.round(g.pct)}%
+                            {formatCurrency(totalRealMes * pctGanancia)} de {formatCurrency(g.target_amount)} en ganancia · {Math.round(g.pct)}%
                           </p>
                         </div>
                       ))}
