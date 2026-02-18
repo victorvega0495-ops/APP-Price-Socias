@@ -32,8 +32,17 @@ function ProtectedRoutes() {
 
   if (!user) return <Navigate to="/auth" replace />;
 
+  // Wait for profile to load before deciding
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-3 border-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   // Redirect to onboarding if metodologia not set
-  if (profile && !profile.metodologia) {
+  if (!profile.metodologia) {
     return (
       <Routes>
         <Route path="/onboarding" element={<Onboarding />} />
