@@ -321,7 +321,7 @@ export default function Dashboard() {
           <p style={{ fontSize: '9px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em' }}>
             MI NEGOCIO — {monthAbbr} {year}
           </p>
-          <p className="text-white mt-1" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '40px', letterSpacing: '-2px', lineHeight: 1.1 }}>
+          <p className="mt-1" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '42px', lineHeight: 1, letterSpacing: '-2px', color: 'white' }}>
             {formatCurrency(totalRealMes)}
           </p>
 
