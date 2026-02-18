@@ -141,6 +141,8 @@ export default function Sell() {
   const [saleDesc, setSaleDesc] = useState('');
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{ total: number; profit: number } | null>(null);
 
   // --- Calculator computations ---
   const incrementAmount = incrementMode === 'percent'
@@ -329,7 +331,7 @@ export default function Sell() {
 
       const firstPayDate = creditPaymentDates.length > 0 ? creditPaymentDates[0] : null;
       const now = new Date();
-      setReceipt({
+      const receiptData: ReceiptData = {
         clientName,
         clientPhone,
         items: [...items],
@@ -340,7 +342,15 @@ export default function Sell() {
         paymentAmount: regPaymentAmt,
         firstPaymentDate: firstPayDate,
         date: now.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }),
-      });
+      };
+
+      // Show celebration first
+      setCelebrationData({ total: totalCharged, profit });
+      setShowCelebration(true);
+      setTimeout(() => {
+        setShowCelebration(false);
+        setReceipt(receiptData);
+      }, 1800);
 
       toast({ title: '¡Venta registrada! 💰' });
     } catch {
@@ -737,6 +747,38 @@ export default function Sell() {
   // ========================
   return (
     <div>
+      {/* Celebration overlay */}
+      <AnimatePresence>
+        {showCelebration && celebrationData && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.3 }}
+            onClick={() => { setShowCelebration(false); }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center cursor-pointer"
+            style={{ background: 'linear-gradient(160deg, #2D1B69, #6B2FA0)' }}
+          >
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: [0, 1.2, 1] }}
+              transition={{ duration: 0.5 }}
+              className="text-6xl"
+            >
+              🎉
+            </motion.span>
+            <p className="text-white mt-4" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '28px' }}>
+              ¡Venta registrada!
+            </p>
+            <p className="mt-2" style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: '42px', color: '#D4A0E8' }}>
+              {formatCurrency(celebrationData.total)}
+            </p>
+            <p className="mt-1" style={{ fontSize: '16px', color: 'rgba(255,255,255,0.7)' }}>
+              Tu ganancia: {formatCurrency(celebrationData.profit)}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* HEADER */}
       <div style={{ background: HEADER_GRADIENT, padding: '48px 20px 24px' }}>
         <h1 className="text-white" style={{ fontFamily: 'Nunito, sans-serif', fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>
