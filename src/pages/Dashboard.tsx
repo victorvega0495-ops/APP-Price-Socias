@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings } from 'lucide-react';
+import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,7 +24,8 @@ interface DashboardData {
 const quickLinks = [
   { to: '/finanzas', icon: DollarSign, label: 'Finanzas', color: 'bg-navy' },
   { to: '/clientas', icon: Users, label: 'Mis Clientas', color: 'bg-navy-light' },
-  { to: '/mi-reto', icon: Trophy, label: 'Mi Reto', color: 'bg-gold' },
+  { to: '/mis-metas', icon: Trophy, label: 'Metas', color: 'bg-gold' },
+  { to: '/tips', icon: Lightbulb, label: 'Tips', color: 'bg-gold' },
 ];
 
 export default function Dashboard() {
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const month = now.getMonth() + 1;
   const [monthlyTarget, setMonthlyTarget] = useState(0);
   const [monthTotalSales, setMonthTotalSales] = useState(0);
+  const [challengeMonthlySales, setChallengeMonthlySales] = useState<number | null>(null);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [goalInput, setGoalInput] = useState(0);
 
@@ -53,11 +55,12 @@ export default function Dashboard() {
       // Challenge goal
       const { data: goal } = await supabase
         .from('challenge_goals')
-        .select('target_amount, deadline')
+        .select('target_amount, deadline, monthly_sales_needed')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      setChallengeMonthlySales(goal?.monthly_sales_needed ? Number(goal.monthly_sales_needed) : null);
 
       // All-time sales for reto
       const { data: finances } = await supabase
@@ -236,7 +239,15 @@ export default function Dashboard() {
           <p className="text-xs text-primary-foreground/50 mt-0.5">vendido este mes</p>
 
           {/* Progress bar toward monthly sales goal */}
-          {monthlyTarget > 0 && (
+          {challengeMonthlySales !== null && challengeMonthlySales > 0 ? (
+            <div className="mt-3">
+              <div className="flex justify-between text-[10px] text-primary-foreground/60 mb-1">
+                <span>{Math.round(Math.min(100, (totalRealMes / challengeMonthlySales) * 100))}%</span>
+                <span>Meta: {formatCurrency(challengeMonthlySales)} en ventas</span>
+              </div>
+              <Progress value={Math.min(100, (totalRealMes / challengeMonthlySales) * 100)} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold shadow-gold" />
+            </div>
+          ) : monthlyTarget > 0 ? (
             <div className="mt-3">
               <div className="flex justify-between text-[10px] text-primary-foreground/60 mb-1">
                 <span>{Math.round(goalProgress)}%</span>
@@ -244,6 +255,10 @@ export default function Dashboard() {
               </div>
               <Progress value={goalProgress} className="h-2.5 bg-primary-foreground/15 [&>div]:bg-gradient-gold shadow-gold" />
             </div>
+          ) : (
+            <Link to="/mis-metas" className="block mt-3 text-sm text-gold font-semibold hover:underline">
+              Configura tu meta →
+            </Link>
           )}
 
           {/* Two stat-boxes */}
@@ -356,7 +371,7 @@ export default function Dashboard() {
       )}
 
       {/* Quick Links */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {quickLinks.map((link, i) => (
           <motion.div
             key={link.to}
