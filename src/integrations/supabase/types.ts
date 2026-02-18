@@ -20,6 +20,9 @@ export type Database = {
           deadline: string
           id: string
           monthly_sales_needed: number | null
+          pct_ahorro: number | null
+          pct_ganancia: number | null
+          pct_reposicion: number | null
           target_amount: number
           target_name: string | null
           target_type: string | null
@@ -31,6 +34,9 @@ export type Database = {
           deadline: string
           id?: string
           monthly_sales_needed?: number | null
+          pct_ahorro?: number | null
+          pct_ganancia?: number | null
+          pct_reposicion?: number | null
           target_amount?: number
           target_name?: string | null
           target_type?: string | null
@@ -42,6 +48,9 @@ export type Database = {
           deadline?: string
           id?: string
           monthly_sales_needed?: number | null
+          pct_ahorro?: number | null
+          pct_ganancia?: number | null
+          pct_reposicion?: number | null
           target_amount?: number
           target_name?: string | null
           target_type?: string | null
