@@ -8,8 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/format';
-import { UserCircle, ArrowLeft, AlertTriangle, LogOut } from 'lucide-react';
+import { UserCircle, ArrowLeft, AlertTriangle, LogOut, HelpCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export default function Profile() {
   const { user, profile, refreshProfile, signOut } = useAuth();
@@ -111,7 +114,23 @@ export default function Profile() {
         transition={{ delay: 0.1 }}
         className="bg-card rounded-2xl p-5 shadow-card space-y-4"
       >
-        <h2 className="text-sm font-semibold text-foreground">Mi metodología financiera</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-foreground">Mi metodología financiera</h2>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground">
+                  <HelpCircle className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[250px] bg-card text-foreground border border-border z-50">
+                <p className="text-xs">
+                  <strong>Recomendada:</strong> 65% va a Price Shoes · 30% es tu ganancia · 5% son gastos
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
 
         <div className="space-y-2">
           <label className="flex items-center gap-3 cursor-pointer">
