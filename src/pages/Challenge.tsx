@@ -112,7 +112,7 @@ export default function Challenge() {
 
     if (allPurchases) {
       setTotalProfit(allPurchases.reduce((s, p) => {
-        const cost = p.cost_price ? Number(p.cost_price) : Number(p.amount) * 0.70;
+        const cost = p.cost_price ? Number(p.cost_price) : Number(p.amount) * (1 - (pctGanancia / 100));
         return s + (Number(p.amount) - cost);
       }, 0));
     }

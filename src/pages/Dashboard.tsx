@@ -44,8 +44,10 @@ export default function Dashboard() {
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [goalInput, setGoalInput] = useState(0);
 
+  const pctGanancia = (profile?.pct_ganancia ?? 30) / 100;
+
   const [totalRealMes, setTotalRealMes] = useState(0);
-  const [margenPromedio, setMargenPromedio] = useState(0.30);
+  const [margenPromedio, setMargenPromedio] = useState(pctGanancia);
   const [montoPendienteCredito, setMontoPendienteCredito] = useState(0);
   const [lastPurchaseDaysAgo, setLastPurchaseDaysAgo] = useState(0);
 
@@ -106,7 +108,7 @@ export default function Dashboard() {
       const ventasConCosto = purchasesData?.filter(p => p.cost_price && Number(p.cost_price) > 0) || [];
       const avgMargen = ventasConCosto.length > 0
         ? ventasConCosto.reduce((s, p) => s + (Number(p.amount) - Number(p.cost_price)) / Number(p.amount), 0) / ventasConCosto.length
-        : 0.30;
+        : pctGanancia;
       setMargenPromedio(avgMargen);
 
       // Days since last purchase
