@@ -41,9 +41,15 @@
     --navy-dark: 232 66% 18%;
     --navy-light: 232 40% 50%;
 
+    --purple-deep: 263 57% 26%;
+    --purple-mid: 271 54% 41%;
+    --purple-lila: 289 55% 63%;
+    --purple-light-bg: 280 46% 94%;
+
     --gradient-gold: linear-gradient(135deg, hsl(289 55% 63%), hsl(283 33% 53%));
     --gradient-navy: linear-gradient(135deg, hsl(232 66% 30%), hsl(232 66% 20%));
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 20% 97%));
+    --gradient-purple-header: linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%);
     
     --shadow-card: 0 2px 12px -2px hsl(232 66% 30% / 0.08);
     --shadow-elevated: 0 8px 30px -8px hsl(232 66% 30% / 0.15);
