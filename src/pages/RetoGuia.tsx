@@ -5,9 +5,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 const HEADER_GRADIENT = 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)';
 const CARD_SHADOW = '0 2px 12px rgba(0,0,0,0.07)';
+
+// Mark reto as visited for checklist
+function useMarkVisitedReto() {
+  const { user, profile } = useAuth();
+  useEffect(() => {
+    if (user && profile && !profile.visited_reto) {
+      supabase.from('profiles').update({ visited_reto: true }).eq('user_id', user.id).then(() => {});
+    }
+  }, [user, profile]);
+}
 
 interface Task {
   day: number;
@@ -66,7 +77,8 @@ const WEEKS: { title: string; tasks: Task[] }[] = [
   },
 ];
 
-export default function RetoGuia() {
+// Full program component (shown when accepted)
+function RetoPrograma() {
   const { user } = useAuth();
   const now = new Date();
   const currentWeekOfMonth = Math.min(4, Math.ceil(now.getDate() / 7));
@@ -96,7 +108,6 @@ export default function RetoGuia() {
     const key = `${week}-${day}`;
     const wasCompleted = !!progress[key];
     setProgress(prev => ({ ...prev, [key]: !wasCompleted }));
-
     if (wasCompleted) {
       await supabase.from('reto_progress').delete().eq('user_id', user.id).eq('week', week).eq('day', day);
     } else {
@@ -129,22 +140,12 @@ export default function RetoGuia() {
   };
 
   return (
-    <div>
-      {/* HEADER */}
-      <div style={{ background: HEADER_GRADIENT, padding: '48px 20px 24px' }}>
-        <h1 className="text-white font-nunito" style={{ fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>
-          Guía del Reto 🏆
-        </h1>
-        <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
-          Tu plan día a día para llegar a $10,000 de ganancia
-        </p>
-        <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
-          <span className="text-sm">🏆</span>
-          <span className="text-sm font-bold text-white font-nunito">{totalPoints} puntos acumulados</span>
-        </div>
+    <>
+      <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+        <span className="text-sm">🏆</span>
+        <span className="text-sm font-bold text-white font-nunito">{totalPoints} puntos acumulados</span>
       </div>
 
-      {/* BODY */}
       <div className="px-4 pt-5 pb-4 space-y-3" style={{ background: '#F5F5F7', minHeight: 'calc(100vh - 200px)' }}>
         {WEEKS.map((week, wi) => {
           const weekNum = wi + 1;
@@ -153,20 +154,10 @@ export default function RetoGuia() {
 
           return (
             <div key={weekNum} className="bg-white rounded-2xl overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
-              <button
-                onClick={() => setOpenWeek(isOpen ? 0 : weekNum)}
-                className="w-full flex items-center gap-3 p-4 text-left"
-              >
-                <div
-                  className="w-3 h-3 rounded-full shrink-0"
-                  style={{
-                    background: completedCount === 7 ? '#22c55e' : completedCount > 0 ? '#f59e0b' : weekNum <= currentWeekOfMonth ? '#ef4444' : '#d1d5db',
-                  }}
-                />
+              <button onClick={() => setOpenWeek(isOpen ? 0 : weekNum)} className="w-full flex items-center gap-3 p-4 text-left">
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ background: completedCount === 7 ? '#22c55e' : completedCount > 0 ? '#f59e0b' : weekNum <= currentWeekOfMonth ? '#ef4444' : '#d1d5db' }} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold" style={{ color: '#2D1B69' }}>
-                    Semana {weekNum} — {week.title}
-                  </p>
+                  <p className="text-sm font-semibold" style={{ color: '#2D1B69' }}>Semana {weekNum} — {week.title}</p>
                   <p className="text-[10px]" style={{ color: '#8a8a9a' }}>{completedCount}/7 tareas</p>
                 </div>
                 {isOpen ? <ChevronUp className="w-4 h-4 shrink-0" style={{ color: '#8a8a9a' }} /> : <ChevronDown className="w-4 h-4 shrink-0" style={{ color: '#8a8a9a' }} />}
@@ -174,63 +165,31 @@ export default function RetoGuia() {
 
               <AnimatePresence>
                 {isOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="overflow-hidden"
-                  >
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
                     <div className="px-4 pb-4 space-y-2">
                       {week.tasks.map((task) => {
                         const key = `${weekNum}-${task.day}`;
                         const done = !!progress[key];
                         return (
-                          <button
-                            key={task.day}
-                            onClick={() => toggleTask(weekNum, task.day)}
-                            className="w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all"
-                            style={{ background: done ? 'rgba(34,197,94,0.08)' : '#F5F5F7' }}
-                          >
-                            <div
-                              className="w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all"
-                              style={{
-                                borderColor: done ? '#22c55e' : '#d1d5db',
-                                background: done ? '#22c55e' : 'transparent',
-                              }}
-                            >
+                          <button key={task.day} onClick={() => toggleTask(weekNum, task.day)} className="w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all" style={{ background: done ? 'rgba(34,197,94,0.08)' : '#F5F5F7' }}>
+                            <div className="w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all" style={{ borderColor: done ? '#22c55e' : '#d1d5db', background: done ? '#22c55e' : 'transparent' }}>
                               {done && <span className="text-white text-xs">✓</span>}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className={`text-sm ${done ? 'line-through' : ''}`} style={{ color: done ? '#8a8a9a' : '#2D1B69' }}>
-                                Día {task.day}: {task.text}
-                              </p>
-                              <span className="text-[10px] font-medium" style={{ color: catColor(task.cat) }}>
-                                {task.cat}
-                              </span>
+                              <p className={`text-sm ${done ? 'line-through' : ''}`} style={{ color: done ? '#8a8a9a' : '#2D1B69' }}>Día {task.day}: {task.text}</p>
+                              <span className="text-[10px] font-medium" style={{ color: catColor(task.cat) }}>{task.cat}</span>
                             </div>
-                            <span className="text-[10px] font-medium shrink-0 mt-1" style={{ color: done ? '#22c55e' : '#d1d5db' }}>
-                              +10 pts
-                            </span>
+                            <span className="text-[10px] font-medium shrink-0 mt-1" style={{ color: done ? '#22c55e' : '#d1d5db' }}>+10 pts</span>
                           </button>
                         );
                       })}
-
                       {completedCount === 7 && (
                         <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(34,197,94,0.1)' }}>
                           <p className="text-sm font-semibold" style={{ color: '#22c55e' }}>🎉 ¡Semana completa! +30 puntos bonus</p>
                         </div>
                       )}
-
-                      {/* Material */}
-                      <button
-                        onClick={() => setMaterialOpen(true)}
-                        className="w-full rounded-xl p-3 text-center"
-                        style={{ background: '#F0E6F6' }}
-                      >
-                        <p className="text-xs font-semibold" style={{ color: '#6B2FA0' }}>
-                          📄 Material de la Semana {weekNum}
-                        </p>
+                      <button onClick={() => setMaterialOpen(true)} className="w-full rounded-xl p-3 text-center" style={{ background: '#F0E6F6' }}>
+                        <p className="text-xs font-semibold" style={{ color: '#6B2FA0' }}>📄 Material de la Semana {weekNum}</p>
                       </button>
                     </div>
                   </motion.div>
@@ -249,15 +208,130 @@ export default function RetoGuia() {
           </DialogHeader>
           <div className="text-center py-6 space-y-3">
             <p className="text-4xl">🌸</p>
-            <p className="text-sm" style={{ color: '#2D1B69' }}>
-              Próximamente: materiales exclusivos de Universidad de la Mujer 🌸
-            </p>
+            <p className="text-sm" style={{ color: '#2D1B69' }}>Próximamente: materiales exclusivos de Universidad de la Mujer 🌸</p>
           </div>
-          <Button onClick={() => setMaterialOpen(false)} className="w-full text-white" style={{ background: '#6B2FA0' }}>
-            Cerrar
-          </Button>
+          <Button onClick={() => setMaterialOpen(false)} className="w-full text-white" style={{ background: '#6B2FA0' }}>Cerrar</Button>
         </DialogContent>
       </Dialog>
+    </>
+  );
+}
+
+export default function RetoGuia() {
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
+  useMarkVisitedReto();
+
+  const [solicitud, setSolicitud] = useState<{ estatus: string } | null>(null);
+  const [loadingSolicitud, setLoadingSolicitud] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from('reto_solicitudes')
+        .select('estatus')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setSolicitud(data as any);
+      setLoadingSolicitud(false);
+    };
+    load();
+  }, [user]);
+
+  const handleSolicitud = async () => {
+    if (!user) return;
+    setSubmitting(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const email = userData?.user?.email || '';
+    const nombre = profile?.name || '';
+    const telefono = profile?.phone || '';
+
+    const { error } = await supabase.from('reto_solicitudes').insert({
+      user_id: user.id,
+      nombre,
+      correo: email,
+      telefono,
+    });
+
+    if (error) {
+      toast({ title: 'Error al enviar solicitud', variant: 'destructive' });
+    } else {
+      setSolicitud({ estatus: 'pendiente' });
+      toast({ title: '¡Solicitud enviada! 🎉' });
+    }
+    setSubmitting(false);
+  };
+
+  const isAccepted = solicitud?.estatus === 'aceptada';
+  const isPending = solicitud?.estatus === 'pendiente';
+  const isRejected = solicitud?.estatus === 'rechazada';
+  const hasApplied = !!solicitud;
+
+  return (
+    <div>
+      {/* HEADER */}
+      <div style={{ background: HEADER_GRADIENT, padding: '48px 20px 24px' }}>
+        <h1 className="text-white font-nunito" style={{ fontSize: '26px', fontWeight: 900, letterSpacing: '-0.5px' }}>
+          Reto de 0 a 10,000 🏆
+        </h1>
+        <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          Programa de acompañamiento Price Shoes
+        </p>
+
+        {isAccepted && <RetoPrograma />}
+      </div>
+
+      {/* BODY — landing / waiting */}
+      {!isAccepted && (
+        <div className="px-4 pt-5 pb-4 space-y-5" style={{ background: '#F5F5F7', minHeight: 'calc(100vh - 200px)' }}>
+          {loadingSolicitud ? (
+            <div className="text-center py-10">
+              <p className="text-sm" style={{ color: '#8a8a9a' }}>Cargando...</p>
+            </div>
+          ) : !hasApplied ? (
+            <>
+              {/* Landing */}
+              <div className="bg-white rounded-2xl p-6 space-y-4" style={{ boxShadow: CARD_SHADOW }}>
+                <div className="flex items-center gap-3">
+                  <img src="/logo-reto.png" alt="Reto" className="h-14 object-contain" />
+                  <div>
+                    <p className="text-base font-bold" style={{ color: '#2D1B69' }}>Reto de 0 a 10,000</p>
+                    <p className="text-xs" style={{ color: '#8a8a9a' }}>Programa oficial de Price Shoes</p>
+                  </div>
+                </div>
+                <p className="text-sm" style={{ color: '#2D1B69' }}>
+                  El Reto de 0 a 10,000 es un programa de acompañamiento de Price Shoes diseñado para ayudarte a generar <strong>$10,000 de ganancia mensual</strong>. Con guía semanal, tareas prácticas y material exclusivo, te llevamos de la mano para que tu negocio crezca.
+                </p>
+                <Button
+                  onClick={handleSolicitud}
+                  disabled={submitting}
+                  className="w-full h-14 rounded-xl text-white font-bold text-base"
+                  style={{ background: 'linear-gradient(135deg, #C06DD6, #9B59B6)' }}
+                >
+                  {submitting ? 'Enviando...' : '¡Quiero participar! 🚀'}
+                </Button>
+              </div>
+            </>
+          ) : (isPending || isRejected) ? (
+            <div className="bg-white rounded-2xl p-6 text-center space-y-4" style={{ boxShadow: CARD_SHADOW }}>
+              <p className="text-4xl">{isPending ? '📩' : '😔'}</p>
+              <p className="text-base font-bold" style={{ color: '#2D1B69' }}>
+                {isPending ? '¡Tu solicitud fue enviada!' : 'Solicitud no aprobada'}
+              </p>
+              <p className="text-sm" style={{ color: '#8a8a9a' }}>
+                {isPending
+                  ? 'Te avisaremos cuando seas aceptada al programa. ¡Mientras tanto, sigue vendiendo! 🎉'
+                  : 'Por el momento no fue posible aceptar tu solicitud. Sigue preparándote y vuelve a intentar más adelante.'}
+              </p>
+              <Button disabled className="w-full h-12 rounded-xl text-white font-semibold" style={{ background: '#d1d5db' }}>
+                {isPending ? 'Solicitud enviada ✓' : 'No disponible'}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

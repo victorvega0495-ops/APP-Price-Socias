@@ -336,6 +336,39 @@ export type Database = {
         }
         Relationships: []
       }
+      reto_solicitudes: {
+        Row: {
+          correo: string
+          created_at: string
+          estatus: string
+          fecha_solicitud: string
+          id: string
+          nombre: string
+          telefono: string | null
+          user_id: string
+        }
+        Insert: {
+          correo: string
+          created_at?: string
+          estatus?: string
+          fecha_solicitud?: string
+          id?: string
+          nombre: string
+          telefono?: string | null
+          user_id: string
+        }
+        Update: {
+          correo?: string
+          created_at?: string
+          estatus?: string
+          fecha_solicitud?: string
+          id?: string
+          nombre?: string
+          telefono?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       sale_items: {
         Row: {
           category: string
