@@ -2,6 +2,16 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+
+// Mark reto as visited for checklist
+function useMarkVisitedReto() {
+  const { user, profile } = useAuth();
+  useEffect(() => {
+    if (user && profile && !profile.visited_reto) {
+      supabase.from('profiles').update({ visited_reto: true }).eq('user_id', user.id).then(() => {});
+    }
+  }, [user, profile]);
+}
 import { formatCurrency, daysRemaining, progressPercentage } from '@/lib/format';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,6 +50,7 @@ function getEmojiForType(type: string) { return ALL_TEMPLATES.find(t => t.type =
 export default function Challenge() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  useMarkVisitedReto();
   const [activeGoal, setActiveGoal] = useState<ActiveGoal | null>(null);
   const [monthlySales, setMonthlySales] = useState(0);
   const [totalProfit, setTotalProfit] = useState(0);
