@@ -2,6 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Home, DollarSign, Users, ShoppingBag, Target, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import InteractiveTour from '@/components/InteractiveTour';
 
 const tabs = [
   { to: '/', icon: Home, label: 'Inicio' },
@@ -24,6 +25,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
   return (
     <div className="min-h-screen bg-background pb-20">
       <main className="max-w-lg mx-auto">{children}</main>
+      <InteractiveTour />
 
       {/* FAB */}
       <div className="fixed bottom-24 right-4 z-50 flex flex-col-reverse items-end gap-2">

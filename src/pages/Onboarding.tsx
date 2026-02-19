@@ -455,8 +455,8 @@ export function OnboardingFlow({ skipWelcome = false, onComplete, initialValues 
             <motion.div key="tour-prompt" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center px-6 text-center" style={{ background: HEADER_GRADIENT }}>
               <p className="text-5xl mb-4">🗺️</p>
               <h2 className="text-white text-xl font-bold font-nunito mb-2">¿Quieres un recorrido rápido?</h2>
-              <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.7)', maxWidth: 280 }}>Te mostramos en 30 segundos cómo sacarle el jugo a tu app</p>
-              <Button onClick={() => goHome(true)} className="w-full max-w-xs h-14 text-base font-bold rounded-2xl text-white mb-3" style={{ background: '#1a103f' }}>Sí, muéstrame →</Button>
+              <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.7)', maxWidth: 280 }}>Te mostramos en 2 minutos cómo funciona cada sección de tu app</p>
+              <Button onClick={() => goHome(true)} className="w-full max-w-xs h-14 text-base font-bold rounded-2xl text-white mb-3" style={{ background: '#1a103f' }}>¡Sí, muéstrame! →</Button>
               <button onClick={() => goHome(false)} className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>Ya sé usarla, entrar directo</button>
             </motion.div>
           )}

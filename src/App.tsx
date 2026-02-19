@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { TourProvider } from "@/contexts/TourContext";
 import MobileLayout from "@/components/MobileLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -53,20 +54,22 @@ function ProtectedRoutes() {
   }
 
   return (
-    <MobileLayout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/finanzas" element={<Finances />} />
-        <Route path="/clientas" element={<Clients />} />
-        <Route path="/inventario" element={<Inventory />} />
-        <Route path="/vender" element={<Sell />} />
-        <Route path="/mis-metas" element={<Challenge />} />
-        <Route path="/reto-guia" element={<RetoGuia />} />
-        <Route path="/tips" element={<Tips />} />
-        <Route path="/perfil" element={<Profile />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </MobileLayout>
+    <TourProvider>
+      <MobileLayout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/finanzas" element={<Finances />} />
+          <Route path="/clientas" element={<Clients />} />
+          <Route path="/inventario" element={<Inventory />} />
+          <Route path="/vender" element={<Sell />} />
+          <Route path="/mis-metas" element={<Challenge />} />
+          <Route path="/reto-guia" element={<RetoGuia />} />
+          <Route path="/tips" element={<Tips />} />
+          <Route path="/perfil" element={<Profile />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </MobileLayout>
+    </TourProvider>
   );
 }
 
