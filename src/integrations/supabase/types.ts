@@ -206,6 +206,7 @@ export type Database = {
           pct_ganancia: number | null
           pct_reposicion: number | null
           phone: string | null
+          tour_completed: boolean
           updated_at: string
           user_id: string
           visited_finanzas: boolean
@@ -226,6 +227,7 @@ export type Database = {
           pct_ganancia?: number | null
           pct_reposicion?: number | null
           phone?: string | null
+          tour_completed?: boolean
           updated_at?: string
           user_id: string
           visited_finanzas?: boolean
@@ -246,6 +248,7 @@ export type Database = {
           pct_ganancia?: number | null
           pct_reposicion?: number | null
           phone?: string | null
+          tour_completed?: boolean
           updated_at?: string
           user_id?: string
           visited_finanzas?: boolean

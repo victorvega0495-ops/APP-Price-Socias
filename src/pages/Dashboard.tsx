@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb, ChevronDown, ChevronUp, Check, Map } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import GuidedTour from '@/components/GuidedTour';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useTour } from '@/contexts/TourContext';
 
 import { formatCurrency, daysRemaining, progressPercentage } from '@/lib/format';
 import { Progress } from '@/components/ui/progress';
@@ -99,13 +100,25 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [tourActive, setTourActive] = useState(false);
+  const { startTour, isTourActive } = useTour();
 
+  // Auto-trigger interactive tour for first-time users
   useEffect(() => {
-    if (searchParams.get('tour') === 'true') {
-      setTimeout(() => setTourActive(true), 800);
+    if (profile && !profile.tour_completed && !isTourActive) {
+      // Check if coming from onboarding with tour=true, or just first visit
+      if (searchParams.get('tour') === 'true') {
+        setSearchParams({}, { replace: true });
+        setTimeout(() => startTour(), 500);
+      } else if (!profile.tour_completed) {
+        // Auto-trigger on first Dashboard visit
+        setTimeout(() => startTour(), 800);
+      }
+    } else if (searchParams.get('tour') === 'true') {
+      // Already completed but explicitly requested
       setSearchParams({}, { replace: true });
+      setTimeout(() => setTourActive(true), 800);
     }
-  }, []);
+  }, [profile]);
   const [data, setData] = useState<DashboardData>({
     totalSales: 0, targetAmount: 10000, deadline: '', overdueCredits: 0, inactiveClients: 0,
   });
@@ -683,6 +696,15 @@ export default function Dashboard() {
                     </Link>
                   ))}
                 </div>
+                {/* Replay tour button */}
+                <button
+                  onClick={() => startTour()}
+                  className="flex items-center gap-2 w-full mt-3 py-2 px-3 rounded-xl text-xs font-medium transition-all"
+                  style={{ background: '#F0E6F6', color: '#6B2FA0' }}
+                >
+                  <Map className="w-3.5 h-3.5" />
+                  ¿Primera vez? Haz el tour guiado →
+                </button>
               </div>
             </motion.div>
           );

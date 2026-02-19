@@ -13,6 +13,7 @@ interface ProfileData {
   avatar_url: string | null;
   visited_finanzas: boolean;
   visited_reto: boolean;
+  tour_completed: boolean;
 }
 
 interface AuthContextType {
@@ -35,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('name, phone, partner_number, metodologia, pct_reposicion, pct_ganancia, pct_ahorro, avatar_url, visited_finanzas, visited_reto')
+      .select('name, phone, partner_number, metodologia, pct_reposicion, pct_ganancia, pct_ahorro, avatar_url, visited_finanzas, visited_reto, tour_completed')
       .eq('user_id', userId)
       .single();
     if (!data) {
@@ -58,6 +59,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         avatar_url: null,
         visited_finanzas: false,
         visited_reto: false,
+        tour_completed: false,
       });
       return;
     }
@@ -73,6 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       avatar_url: d.avatar_url ?? null,
       visited_finanzas: d.visited_finanzas ?? false,
       visited_reto: d.visited_reto ?? false,
+      tour_completed: d.tour_completed ?? false,
     });
   };
 
