@@ -208,6 +208,8 @@ export type Database = {
           phone: string | null
           updated_at: string
           user_id: string
+          visited_finanzas: boolean
+          visited_reto: boolean
         }
         Insert: {
           avatar_url?: string | null
@@ -226,6 +228,8 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id: string
+          visited_finanzas?: boolean
+          visited_reto?: boolean
         }
         Update: {
           avatar_url?: string | null
@@ -244,6 +248,8 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+          visited_finanzas?: boolean
+          visited_reto?: boolean
         }
         Relationships: []
       }

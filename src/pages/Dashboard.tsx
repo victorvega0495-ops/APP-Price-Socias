@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb, ChevronDown, ChevronUp, Check, Circle } from 'lucide-react';
+import { DollarSign, Users, Trophy, AlertTriangle, Clock, Settings, Lightbulb, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import GuidedTour from '@/components/GuidedTour';
 import { useAuth } from '@/hooks/useAuth';
@@ -121,7 +121,6 @@ export default function Dashboard() {
   const [goalInput, setGoalInput] = useState(0);
 
   // Checklist state
-  const [checklistDismissed, setChecklistDismissed] = useState(() => localStorage.getItem('onboarding_complete') === 'true');
   const [hasPurchases, setHasPurchases] = useState(false);
   const [hasClients, setHasClients] = useState(false);
   const [hasGoals, setHasGoals] = useState(false);
@@ -300,12 +299,6 @@ export default function Dashboard() {
     const extraPct = metaVentas > 0 ? Math.round((montoPendienteCredito / metaVentas) * 100) : 0;
     smartNotes.push({
       text: `💰 Tienes ${formatCurrency(montoPendienteCredito)} sin cobrar. ¡Recupéralos y ya llevas ${extraPct}% más!`,
-      type: 'warn',
-    });
-  }
-  if (lastPurchaseDaysAgo >= 3 && smartNotes.length < 2) {
-    smartNotes.push({
-      text: `⏰ Llevas ${lastPurchaseDaysAgo}+ días sin registrar ventas. ¿Ya vendiste algo? Tócalo en Vender 👇`,
       type: 'warn',
     });
   }
@@ -634,29 +627,20 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Onboarding Checklist */}
+        {/* Exploration Checklist */}
         {(() => {
-          const hasMetodologia = !!profile?.metodologia;
           const steps = [
-            { done: hasMetodologia, label: 'Metodología configurada', to: '/perfil' },
-            { done: hasPurchases, label: 'Primera venta registrada', to: '/vender' },
-            { done: hasClients, label: 'Primera clienta agregada', to: '/clientas' },
-            { done: hasGoals, label: 'Meta configurada', to: '/mis-metas' },
+            { done: hasPurchases, label: 'Simula tu primera venta', to: '/vender', emoji: '🛍️' },
+            { done: hasClients, label: 'Registra tu primera clienta', to: '/clientas', emoji: '👩' },
+            { done: hasGoals, label: 'Configura tu meta del mes', to: '/mis-metas', emoji: '🎯' },
+            { done: profile?.visited_finanzas ?? false, label: 'Explora tus finanzas', to: '/finanzas', emoji: '📊' },
+            { done: profile?.visited_reto ?? false, label: 'Conoce tu Reto', to: '/reto-guia', emoji: '🏆' },
           ];
           const completed = steps.filter(s => s.done).length;
-          const allDone = completed === 4;
+          const allDone = completed === 5;
 
-          if (checklistDismissed) return null;
-
-          if (allDone && !checklistCelebrating) {
-            setTimeout(() => {
-              setChecklistCelebrating(true);
-              setTimeout(() => {
-                localStorage.setItem('onboarding_complete', 'true');
-                setChecklistDismissed(true);
-              }, 3000);
-            }, 0);
-          }
+          // If all done, don't show checklist
+          if (allDone) return null;
 
           return (
             <motion.div
@@ -667,40 +651,39 @@ export default function Dashboard() {
             >
               {/* Progress bar */}
               <div className="h-1.5 w-full" style={{ background: '#F0E6F6' }}>
-                <div className="h-full transition-all duration-700" style={{ width: `${(completed / 4) * 100}%`, background: 'linear-gradient(90deg, #C06DD6, #6B2FA0)' }} />
+                <div className="h-full transition-all duration-700" style={{ width: `${(completed / 5) * 100}%`, background: 'linear-gradient(90deg, #C06DD6, #6B2FA0)' }} />
               </div>
 
-              {checklistCelebrating ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-6 text-center"
-                >
-                  <p className="text-2xl">🎉</p>
-                  <p className="text-sm font-bold mt-2" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>¡Lista para triunfar!</p>
-                </motion.div>
-              ) : (
-                <div className="p-4">
-                  <p className="text-sm font-bold" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>Tu negocio en marcha ✨</p>
-                  <p className="text-xs mb-3" style={{ color: '#8a8a9a' }}>Completa estos pasos para sacarle todo el jugo a tu app</p>
-                  <div className="space-y-2">
-                    {steps.map((s, i) => (
-                      <Link key={i} to={s.to} className="flex items-center gap-3 py-1.5">
-                        {s.done ? (
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#22C55E' }}>
-                            <Check className="w-3 h-3 text-white" />
-                          </div>
-                        ) : (
-                          <Circle className="w-5 h-5" style={{ color: '#D1D5DB' }} />
-                        )}
-                        <span className={`text-sm ${s.done ? 'line-through' : ''}`} style={{ color: s.done ? '#8a8a9a' : '#2D1B69' }}>
-                          {s.label}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-bold" style={{ color: '#2D1B69', fontFamily: 'Nunito, sans-serif' }}>Descubre tu app ✨</p>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#F0E6F6', color: '#6B2FA0' }}>
+                    {completed} de 5
+                  </span>
                 </div>
-              )}
+                <p className="text-xs mb-3" style={{ color: '#8a8a9a' }}>Completa estos pasos para dominar tu negocio</p>
+                <div className="space-y-2">
+                  {steps.map((s, i) => (
+                    <Link key={i} to={s.to} className="flex items-center gap-3 py-2 px-3 rounded-xl transition-all" style={{ background: s.done ? '#F0FDF4' : '#FAFAFA' }}>
+                      {s.done ? (
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: '#22C55E' }}>
+                          <Check className="w-3.5 h-3.5 text-white" />
+                        </div>
+                      ) : (
+                        <div className="w-6 h-6 rounded-full border-2 shrink-0 flex items-center justify-center" style={{ borderColor: '#6B2FA0' }}>
+                          <span className="text-xs">{s.emoji}</span>
+                        </div>
+                      )}
+                      <span className={`text-sm flex-1 ${s.done ? 'line-through' : 'font-medium'}`} style={{ color: s.done ? '#8a8a9a' : '#2D1B69' }}>
+                        {s.label}
+                      </span>
+                      {!s.done && (
+                        <span className="text-[10px] font-semibold" style={{ color: '#6B2FA0' }}>Ir →</span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </motion.div>
           );
         })()}

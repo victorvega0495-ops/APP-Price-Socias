@@ -2,6 +2,16 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+
+// Mark finanzas as visited for checklist
+function useMarkVisited() {
+  const { user, profile } = useAuth();
+  useEffect(() => {
+    if (user && profile && !profile.visited_finanzas) {
+      supabase.from('profiles').update({ visited_finanzas: true }).eq('user_id', user.id).then(() => {});
+    }
+  }, [user, profile]);
+}
 import { formatCurrency } from '@/lib/format';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -134,6 +144,7 @@ interface PurchaseRow {
 export default function Finances() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  useMarkVisited();
   const now = new Date();
   const [year] = useState(now.getFullYear());
   const [month] = useState(now.getMonth() + 1);
