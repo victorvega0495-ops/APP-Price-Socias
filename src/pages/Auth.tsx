@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,22 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
+  const [testerLoading, setTesterLoading] = useState(false);
+
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('lovable.app');
+
+  const handleTesterLogin = async () => {
+    setTesterLoading(true);
+    try {
+      await supabase.rpc('reset_tester_account');
+      const { error } = await signIn('tester@demo.com', 'tester123');
+      if (error) throw error;
+    } catch (err: any) {
+      toast({ title: 'Error tester', description: err.message, variant: 'destructive' });
+    } finally {
+      setTesterLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +120,18 @@ export default function Auth() {
                 {isLogin ? 'Regístrate aquí' : 'Inicia sesión'}
               </button>
             </p>
+
+            {isDev && (
+              <button
+                type="button"
+                onClick={handleTesterLogin}
+                disabled={testerLoading}
+                className="w-full mt-3 text-xs py-2 rounded-lg opacity-50 hover:opacity-80 transition-opacity"
+                style={{ color: '#8a8a9a' }}
+              >
+                {testerLoading ? 'Reseteando...' : '🧪 Entrar como tester'}
+              </button>
+            )}
           </div>
         </motion.div>
       </div>
