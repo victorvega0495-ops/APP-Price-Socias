@@ -24,7 +24,6 @@ import { Calendar, Pencil, Lock } from 'lucide-react';
 const HEADER_GRADIENT = 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)';
 const CARD_SHADOW = '0 2px 12px rgba(0,0,0,0.07)';
 
-const RETO_TEMPLATE = { type: 'reto', emoji: '🏆', name: 'Reto 0 a 10,000', fixed: true, fixedAmount: 10000, fixedMonths: 1 } as const;
 const DREAM_TEMPLATES = [
   { type: 'coche', emoji: '🚗', name: 'Mi coche', fixed: false },
   { type: 'casa', emoji: '🏠', name: 'Mi casa / renta', fixed: false },
@@ -32,8 +31,7 @@ const DREAM_TEMPLATES = [
   { type: 'capricho', emoji: '📱', name: 'Un capricho', fixed: false },
   { type: 'personalizada', emoji: '✏️', name: 'Meta personalizada', fixed: false },
 ] as const;
-const ALL_TEMPLATES = [RETO_TEMPLATE, ...DREAM_TEMPLATES];
-type GoalTemplate = typeof ALL_TEMPLATES[number];
+type GoalTemplate = typeof DREAM_TEMPLATES[number];
 
 interface ActiveGoal { id: string; target_name: string; target_type: string; target_amount: number; deadline: string; monthly_sales_needed: number; }
 
@@ -45,7 +43,7 @@ function getMotivationalPhrase(pct: number) {
   return '¡Cada venta te acerca más! 💪';
 }
 
-function getEmojiForType(type: string) { return ALL_TEMPLATES.find(t => t.type === type)?.emoji ?? '🎯'; }
+function getEmojiForType(type: string) { return DREAM_TEMPLATES.find(t => t.type === type)?.emoji ?? '🎯'; }
 
 export default function Challenge() {
   const { user, profile } = useAuth();
@@ -66,7 +64,8 @@ export default function Challenge() {
 
   const loadData = async () => {
     if (!user) return;
-    const { data: goal } = await supabase.from('challenge_goals').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    // Only load non-reto goals
+    const { data: goal } = await supabase.from('challenge_goals').select('*').eq('user_id', user.id).neq('target_type', 'reto').order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (goal) { const g = goal as any; setActiveGoal({ id: goal.id, target_name: g.target_name ?? 'Mi Meta', target_type: g.target_type ?? 'personalizada', target_amount: Number(goal.target_amount), deadline: goal.deadline, monthly_sales_needed: Number(g.monthly_sales_needed ?? 0) }); } else { setActiveGoal(null); }
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -79,15 +78,13 @@ export default function Challenge() {
 
   useEffect(() => { loadData(); }, [user]);
 
-  const isReto = selectedTemplate?.type === 'reto';
   const calc = (() => {
     if (!formAmount || formAmount <= 0 || !formMonths) return { ahorroMensual: 0, gananciaMensual: 0, ventaMensual: 0, ventaDiaria: 0 };
-    if (isReto) { const gananciaMensual = formAmount; const ventaMensual = gananciaMensual / (pctGanancia / 100); return { ahorroMensual: 0, gananciaMensual, ventaMensual, ventaDiaria: ventaMensual / 30 }; }
     const ahorroMensual = formAmount / formMonths; const gananciaMensual = ahorroMensual / (pctAhorro / 100); const ventaMensual = gananciaMensual / (pctGanancia / 100);
     return { ahorroMensual, gananciaMensual, ventaMensual, ventaDiaria: ventaMensual / 30 };
   })();
 
-  const openDialog = (template: GoalTemplate) => { setSelectedTemplate(template); setFormName(template.name); if (template.fixed) { setFormAmount(template.fixedAmount!); setFormMonths(template.fixedMonths!); } else { setFormAmount(0); setFormMonths(3); } setDialogOpen(true); };
+  const openDialog = (template: GoalTemplate) => { setSelectedTemplate(template); setFormName(template.name); setFormAmount(0); setFormMonths(3); setDialogOpen(true); };
 
   const saveGoal = async () => {
     if (!user || !selectedTemplate) return;
@@ -105,7 +102,6 @@ export default function Challenge() {
   const monthProgress = monthlyTarget > 0 ? progressPercentage(monthlySales, monthlyTarget) : 0;
   const remainingForMonth = Math.max(0, monthlyTarget - monthlySales);
   const dreamProgress = activeGoal ? progressPercentage(totalProfit, activeGoal.target_amount) : 0;
-  const isRetoActive = activeGoal?.target_type === 'reto';
 
   return (
     <div>
@@ -117,19 +113,7 @@ export default function Challenge() {
 
       {/* BODY */}
       <div className="px-4 pt-5 pb-4 space-y-5" style={{ background: '#F5F5F7', minHeight: 'calc(100vh - 140px)' }}>
-        {/* Reto */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#2D1B69' }}>🏆 Reto de negocio</h2>
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => openDialog(RETO_TEMPLATE)} className={`relative w-full rounded-[18px] p-5 flex items-center gap-4 text-left border-2`} style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)', borderColor: isRetoActive ? '#C06DD6' : 'transparent' }}>
-            <img src="/logo-reto.png" alt="Reto de 0 a 10,000" className="h-12 object-contain" />
-            <div><span className="text-base font-bold text-white">{RETO_TEMPLATE.name}</span><p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>Programa oficial de Price Shoes</p></div>
-            {isRetoActive && <div className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full" style={{ background: '#C06DD6' }} />}
-          </motion.button>
-        </div>
-
-        <div className="border-t" style={{ borderColor: '#E8D5F5' }} />
-
-        {/* Sueños */}
+        {/* Sueños — only personal goals, no Reto */}
         <div className="space-y-3">
           <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#2D1B69' }}>✨ Mis sueños</h2>
           <div className="grid grid-cols-2 gap-3">
@@ -152,7 +136,7 @@ export default function Challenge() {
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="rounded-[18px] p-5 space-y-4 text-white" style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2"><span className="text-2xl">{getEmojiForType(activeGoal.target_type)}</span><h2 className="text-lg font-bold font-nunito">{activeGoal.target_name}</h2></div>
-                <button onClick={() => { const tmpl = ALL_TEMPLATES.find(t => t.type === activeGoal.target_type) ?? DREAM_TEMPLATES[4]; openDialog(tmpl); }} style={{ color: 'rgba(255,255,255,0.6)' }}><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => { const tmpl = DREAM_TEMPLATES.find(t => t.type === activeGoal.target_type) ?? DREAM_TEMPLATES[4]; openDialog(tmpl); }} style={{ color: 'rgba(255,255,255,0.6)' }}><Pencil className="w-4 h-4" /></button>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}><span>Progreso este mes</span><span>{monthProgress}%</span></div>
@@ -188,15 +172,15 @@ export default function Challenge() {
             <DialogDescription>Configura tu meta</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div><Label className="text-xs">Nombre de la meta</Label><Input value={formName} onChange={(e) => setFormName(e.target.value)} disabled={isReto} /></div>
+            <div><Label className="text-xs">Nombre de la meta</Label><Input value={formName} onChange={(e) => setFormName(e.target.value)} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="relative"><Label className="text-xs">Costo del sueño ($)</Label><Input type="number" value={formAmount || ''} onChange={(e) => setFormAmount(Number(e.target.value) || 0)} disabled={selectedTemplate?.fixed} placeholder="$50,000" />{selectedTemplate?.fixed && <Lock className="absolute right-3 top-8 w-3.5 h-3.5" style={{ color: '#8a8a9a' }} />}</div>
-              <div className="relative"><Label className="text-xs">Plazo (meses)</Label><Input type="number" value={formMonths || ''} onChange={(e) => setFormMonths(Number(e.target.value) || 0)} disabled={selectedTemplate?.fixed} />{selectedTemplate?.fixed && <Lock className="absolute right-3 top-8 w-3.5 h-3.5" style={{ color: '#8a8a9a' }} />}</div>
+              <div><Label className="text-xs">Costo del sueño ($)</Label><Input type="number" value={formAmount || ''} onChange={(e) => setFormAmount(Number(e.target.value) || 0)} placeholder="$50,000" /></div>
+              <div><Label className="text-xs">Plazo (meses)</Label><Input type="number" value={formMonths || ''} onChange={(e) => setFormMonths(Number(e.target.value) || 0)} /></div>
             </div>
             {formAmount > 0 && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl p-4 space-y-2 text-white" style={{ background: 'linear-gradient(135deg, #2D1B69, #6B2FA0)' }}>
                 <p className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Para {formName} de {formatCurrency(formAmount)} en {formMonths} {formMonths === 1 ? 'mes' : 'meses'}:</p>
-                {!isReto && <p className="text-sm">Ahorro mensual necesario: {formatCurrency(Math.round(calc.ahorroMensual))}</p>}
+                <p className="text-sm">Ahorro mensual necesario: {formatCurrency(Math.round(calc.ahorroMensual))}</p>
                 <p className="text-sm">Ganancia mensual necesaria: {formatCurrency(Math.round(calc.gananciaMensual))}</p>
                 <p className="text-sm">Ventas mensuales necesarias: {formatCurrency(Math.round(calc.ventaMensual))}</p>
                 <p className="text-base font-bold mt-1 font-nunito" style={{ color: '#E8A5F0' }}>= {formatCurrency(Math.round(calc.ventaDiaria))} por día 💪</p>

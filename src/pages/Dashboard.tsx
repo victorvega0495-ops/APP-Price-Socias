@@ -283,8 +283,6 @@ export default function Dashboard() {
   const days = data.deadline ? daysRemaining(data.deadline) : 0;
   const firstName = profile?.name?.split(' ')[0] || 'Socia';
 
-  const metaVentas = monthlyTarget > 0 ? monthlyTarget / margenPromedio : 0;
-  const goalProgress = metaVentas > 0 ? Math.min(100, (totalRealMes / metaVentas) * 100) : 0;
   const gananciaAcumulada = totalRealMes * pctGanancia;
 
   const goalsWithProgress = activeGoals.map(g => {
@@ -307,15 +305,16 @@ export default function Dashboard() {
     }
   };
 
+  const salesProgress = monthlyTarget > 0 ? Math.min(100, (totalRealMes / monthlyTarget) * 100) : 0;
   const smartNotes: { text: string; type: 'warn' | 'success' }[] = [];
   if (data.overdueCredits > 0 && montoPendienteCredito > 0) {
-    const extraPct = metaVentas > 0 ? Math.round((montoPendienteCredito / metaVentas) * 100) : 0;
+    const extraPct = monthlyTarget > 0 ? Math.round((montoPendienteCredito / monthlyTarget) * 100) : 0;
     smartNotes.push({
       text: `💰 Tienes ${formatCurrency(montoPendienteCredito)} sin cobrar. ¡Recupéralos y ya llevas ${extraPct}% más!`,
       type: 'warn',
     });
   }
-  if (smartNotes.length === 0 && goalProgress >= 80 && totalRealMes > 0) {
+  if (smartNotes.length === 0 && salesProgress >= 80 && totalRealMes > 0) {
     smartNotes.push({
       text: '🚀 ¡Vas muy bien! A este ritmo llegas antes de fin de mes.',
       type: 'success',
@@ -397,41 +396,24 @@ export default function Dashboard() {
           }}
         >
           <p style={{ fontSize: '9px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em' }}>
-            MI NEGOCIO — {monthAbbr} {year}
+            VENTAS DEL MES — {monthAbbr} {year}
           </p>
           <p className="mt-1 font-nunito" style={{ fontWeight: 900, fontSize: '42px', lineHeight: 1, letterSpacing: '-2px', color: 'white' }}>
             {formatCurrency(totalRealMes)}
           </p>
 
-          {/* Progress bar */}
-          {primaryGoal && primaryGoal.monthly_sales_needed && primaryGoal.monthly_sales_needed > 0 ? (
+          {/* Progress bar — sales-based */}
+          {monthlyTarget > 0 ? (
             <div className="mt-3">
               <div className="flex justify-between mb-1" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
-                <span>{Math.round(Math.min(100, (totalRealMes / primaryGoal.monthly_sales_needed) * 100))}%</span>
-                <span>Meta: {formatCurrency(primaryGoal.monthly_sales_needed)}</span>
+                <span>{Math.round(Math.min(100, (totalRealMes / monthlyTarget) * 100))}%</span>
+                <span>Meta ventas: {formatCurrency(monthlyTarget)}</span>
               </div>
               <div className="w-full h-2.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{
-                    width: `${Math.min(100, (totalRealMes / primaryGoal.monthly_sales_needed) * 100)}%`,
-                    background: 'linear-gradient(90deg, #C06DD6, #E8A5F0)',
-                    boxShadow: '0 0 12px rgba(192,109,214,0.5)',
-                  }}
-                />
-              </div>
-            </div>
-          ) : monthlyTarget > 0 ? (
-            <div className="mt-3">
-              <div className="flex justify-between mb-1" style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
-                <span>{Math.round(goalProgress)}%</span>
-                <span>Meta: {formatCurrency(metaVentas)}</span>
-              </div>
-              <div className="w-full h-2.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${goalProgress}%`,
+                    width: `${Math.min(100, (totalRealMes / monthlyTarget) * 100)}%`,
                     background: 'linear-gradient(90deg, #C06DD6, #E8A5F0)',
                     boxShadow: '0 0 12px rgba(192,109,214,0.5)',
                   }}
@@ -440,39 +422,26 @@ export default function Dashboard() {
             </div>
           ) : totalRealMes === 0 ? (
             <div className="mt-3 text-sm text-center" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              ¡Bienvenida! <Link to="/mis-metas" className="font-semibold underline" style={{ color: '#E8A5F0' }}>Configura tu meta</Link> 🚀
+              ¡Bienvenida! <button onClick={() => setGoalDialogOpen(true)} className="font-semibold underline" style={{ color: '#E8A5F0' }}>Configura tu meta de ventas</button> 🚀
             </div>
           ) : (
-            <Link to="/mis-metas" className="block mt-3 text-sm font-semibold underline" style={{ color: '#E8A5F0' }}>
-              Configura tu meta →
-            </Link>
+            <button onClick={() => setGoalDialogOpen(true)} className="block mt-3 text-sm font-semibold underline" style={{ color: '#E8A5F0' }}>
+              Configura tu meta de ventas →
+            </button>
           )}
 
           {/* Stats line */}
           <p className="mt-3 flex items-center gap-1 flex-wrap" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)' }}>
-            💜 Ganancia: <span className="font-semibold" style={{ color: '#E8A5F0' }}>{formatCurrency(gananciaAcumulada)}</span>
+            💰 Ganancia acumulada: <span className="font-semibold" style={{ color: '#E8A5F0' }}>{formatCurrency(gananciaAcumulada)}</span>
             {monthlyTarget > 0 && (
               <>
                 <span className="mx-1">·</span>
-                🎯 Meta: <span className="font-semibold text-white">{formatCurrency(monthlyTarget)}</span>
                 <button
                   onClick={() => { setGoalInput(monthlyTarget); setGoalDialogOpen(true); }}
                   className="ml-0.5"
                   style={{ color: 'rgba(255,255,255,0.35)' }}
                 >
                   <Settings className="w-2.5 h-2.5" />
-                </button>
-              </>
-            )}
-            {!monthlyTarget && (
-              <>
-                <span className="mx-1">·</span>
-                <button
-                  onClick={() => setGoalDialogOpen(true)}
-                  className="font-semibold underline"
-                  style={{ color: '#E8A5F0' }}
-                >
-                  Configura meta →
                 </button>
               </>
             )}
@@ -717,11 +686,11 @@ export default function Dashboard() {
       <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Meta de {monthNames[month]}</DialogTitle>
+            <DialogTitle>Meta de ventas — {monthNames[month]}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>¿Cuánto quieres ganar este mes?</Label>
+              <Label>¿Cuánto quieres VENDER este mes?</Label>
               <div className="relative mt-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                 <Input
@@ -732,6 +701,9 @@ export default function Dashboard() {
                   className="pl-7"
                 />
               </div>
+              <p className="text-xs mt-1" style={{ color: '#8a8a9a' }}>
+                💰 Con {Math.round(pctGanancia * 100)}% de ganancia = {formatCurrency(Math.round((goalInput || 0) * pctGanancia))} de ganancia
+              </p>
             </div>
             <Button onClick={saveMonthlyGoal} className="w-full" style={{ background: '#2D1B69', color: 'white' }}>
               Guardar meta
