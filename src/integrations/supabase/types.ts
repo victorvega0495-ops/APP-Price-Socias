@@ -300,6 +300,33 @@ export type Database = {
           },
         ]
       }
+      reto_progress: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          day: number
+          id: string
+          user_id: string
+          week: number
+        }
+        Insert: {
+          completed?: boolean | null
+          completed_at?: string | null
+          day: number
+          id?: string
+          user_id: string
+          week: number
+        }
+        Update: {
+          completed?: boolean | null
+          completed_at?: string | null
+          day?: number
+          id?: string
+          user_id?: string
+          week?: number
+        }
+        Relationships: []
+      }
       sale_items: {
         Row: {
           category: string

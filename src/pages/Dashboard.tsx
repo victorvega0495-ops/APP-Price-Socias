@@ -38,6 +38,61 @@ const quickLinks = [
   { to: '/tips', icon: Lightbulb, label: 'Tips' },
 ];
 
+const FRASES_MOTIVACIONALES = [
+  'La mujer que vende, construye su propio futuro 💜',
+  'Cada venta te acerca más a tus sueños 🌟',
+  'Tu esfuerzo de hoy es tu libertad de mañana ✨',
+  'Eres empresaria, aunque aún no lo sepas 🚀',
+  'El mejor negocio es el que tú construyes 💪',
+];
+
+const TIPS_NEGOCIO = [
+  'Las clientas en crédito gastan 40% más. ¡Ofrécelo siempre!',
+  'Un estado de WhatsApp diario puede generarte 2-3 ventas extra a la semana',
+  'Pregunta siempre: ¿para quién más lo compras? Así duplicas la venta',
+  'Las clientas que saludas seguido compran 3x más que las que no',
+  'Registra cada venta el mismo día — así tu negocio nunca miente',
+];
+
+const MONTH_NAMES_ES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function MotivationalCard({ firstName }: { firstName: string }) {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
+  const type = dayOfYear % 3;
+
+  if (type === 0) {
+    // Frase motivacional
+    const idx = dayOfYear % FRASES_MOTIVACIONALES.length;
+    return (
+      <div className="rounded-2xl p-5 text-center" style={{ background: 'linear-gradient(135deg, rgba(192,109,214,0.15), rgba(107,47,160,0.1))' }}>
+        <p className="text-sm font-semibold" style={{ color: '#2D1B69' }}>{FRASES_MOTIVACIONALES[idx]}</p>
+      </div>
+    );
+  }
+
+  if (type === 1) {
+    // Tip del día
+    const idx = dayOfYear % TIPS_NEGOCIO.length;
+    return (
+      <div className="rounded-2xl p-5 border" style={{ borderColor: '#E8D5F5', background: 'white' }}>
+        <p className="text-xs font-bold mb-1" style={{ color: '#6B2FA0' }}>💡 Tip del día</p>
+        <p className="text-sm" style={{ color: '#2D1B69' }}>{TIPS_NEGOCIO[idx]}</p>
+      </div>
+    );
+  }
+
+  // Afirmación del día
+  const fechaEs = `${now.getDate()} de ${MONTH_NAMES_ES[now.getMonth() + 1]} de ${now.getFullYear()}`;
+  return (
+    <div className="rounded-2xl p-5 text-center text-white" style={{ background: 'linear-gradient(135deg, #1a103f, #2D1B69)' }}>
+      <p className="text-[10px] mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>{fechaEs}</p>
+      <p className="text-sm font-semibold">Hoy, {firstName} es una vendedora exitosa que genera $10,000 este mes 🌸</p>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -649,11 +704,8 @@ export default function Dashboard() {
             </motion.div>
           );
         })()}
-        {/* Price Shoes footer */}
-        <div className="flex flex-col items-center gap-1 pt-4 pb-8">
-          <span className="text-[10px]" style={{ color: '#999' }}>Herramienta oficial de</span>
-          <img src="/logo-price.png" alt="Price Shoes" className="h-7 object-contain opacity-60" />
-        </div>
+        {/* Card motivacional rotativa */}
+        <MotivationalCard firstName={firstName} />
       </div>
 
       {/* Goal Dialog */}
