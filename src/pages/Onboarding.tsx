@@ -69,9 +69,9 @@ export function OnboardingFlow({ skipWelcome = false, onComplete, initialValues 
       pct_reposicion: pctReposicion,
       compra_tipo: compraTipo,
     }).eq('user_id', user.id);
-    await refreshProfile();
     setSaving(false);
     if (skipWelcome) {
+      await refreshProfile();
       toast({ title: '¡Configuración lista! 🎉' });
       if (onComplete) onComplete();
       else navigate('/');
@@ -80,12 +80,13 @@ export function OnboardingFlow({ skipWelcome = false, onComplete, initialValues 
     }
   };
 
-  const goHome = (withTour: boolean) => {
+  const goHome = async (withTour: boolean) => {
+    await refreshProfile();
     toast({ title: '¡Configuración lista! 🎉' });
     if (onComplete) {
       onComplete();
     } else {
-      navigate(withTour ? '/?tour=true' : '/');
+      navigate(withTour ? '/?tour=true' : '/', { replace: true });
     }
   };
 
@@ -100,7 +101,7 @@ export function OnboardingFlow({ skipWelcome = false, onComplete, initialValues 
   const progressWidth = ((stepIndex + 1) / totalSteps) * 100;
 
   const compraOptions = [
-    { value: 'contado', emoji: '💵', title: 'Pago de contado', sub: 'Pagas el catálogo completo' },
+    { value: 'contado', emoji: '💵', title: 'Pago de contado', sub: 'Pagas el producto completo' },
     { value: 'crediprice', emoji: '💳', title: 'Con CrediPrice', sub: 'Pagas en parcialidades' },
     { value: 'mixto', emoji: '🔀', title: 'Mitad y mitad', sub: 'Dependiendo del pedido' },
   ];
@@ -135,8 +136,54 @@ export function OnboardingFlow({ skipWelcome = false, onComplete, initialValues 
           {/* STEP 0 — Welcome */}
           {step === 0 && (
             <motion.div key="s0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center px-6 text-center" style={{ background: HEADER_GRADIENT }}>
-              <img src="/logo-um.png" alt="UM" className="h-12 object-contain mb-4" />
-              <img src="/logo-price.png" alt="Price Shoes" className="h-8 object-contain mb-8" style={{ opacity: 0.7, filter: 'brightness(0) invert(1)' }} />
+              <img src="/logo-price.png" alt="Price Shoes" className="h-14 object-contain mb-8" />
+
+              {/* Ilustración emprendedora */}
+              <svg viewBox="0 0 200 200" className="w-40 h-40 mb-6" style={{ animation: 'float 3s ease-in-out infinite' }}>
+                {/* Fondo circular */}
+                <circle cx="100" cy="100" r="90" fill="#F0E6F6" opacity="0.5" />
+                {/* Cabello */}
+                <ellipse cx="100" cy="62" rx="28" ry="30" fill="#2D1B69" />
+                <ellipse cx="78" cy="72" rx="10" ry="18" fill="#2D1B69" />
+                <ellipse cx="122" cy="72" rx="10" ry="18" fill="#2D1B69" />
+                {/* Cara */}
+                <ellipse cx="100" cy="70" rx="22" ry="24" fill="#F5C6A0" />
+                {/* Ojos */}
+                <ellipse cx="92" cy="66" rx="2.5" ry="3" fill="#2D1B69" />
+                <ellipse cx="108" cy="66" rx="2.5" ry="3" fill="#2D1B69" />
+                {/* Sonrisa */}
+                <path d="M90 76 Q100 84 110 76" stroke="#2D1B69" strokeWidth="2" fill="none" strokeLinecap="round" />
+                {/* Mejillas */}
+                <circle cx="86" cy="76" r="4" fill="#E8A5F0" opacity="0.5" />
+                <circle cx="114" cy="76" r="4" fill="#E8A5F0" opacity="0.5" />
+                {/* Cuerpo / blusa */}
+                <path d="M70 95 Q100 88 130 95 L135 145 Q100 150 65 145 Z" fill="#6B2FA0" />
+                {/* Cuello */}
+                <rect x="94" y="90" width="12" height="8" rx="3" fill="#F5C6A0" />
+                {/* Brazo izquierdo arriba (celebración) */}
+                <path d="M70 100 L45 60" stroke="#F5C6A0" strokeWidth="8" strokeLinecap="round" />
+                {/* Mano izquierda */}
+                <circle cx="43" cy="56" r="6" fill="#F5C6A0" />
+                {/* Brazo derecho arriba */}
+                <path d="M130 100 L155 60" stroke="#F5C6A0" strokeWidth="8" strokeLinecap="round" />
+                {/* Mano derecha */}
+                <circle cx="157" cy="56" r="6" fill="#F5C6A0" />
+                {/* Estrella izquierda */}
+                <polygon points="35,42 37,37 42,37 38,34 39,29 35,32 31,29 32,34 28,37 33,37" fill="#D4A017" opacity="0.9">
+                  <animateTransform attributeName="transform" type="scale" values="1;1.2;1" dur="1.5s" repeatCount="indefinite" additive="sum" />
+                </polygon>
+                {/* Estrella derecha */}
+                <polygon points="165,42 167,37 172,37 168,34 169,29 165,32 161,29 162,34 158,37 163,37" fill="#D4A017" opacity="0.9">
+                  <animateTransform attributeName="transform" type="scale" values="1;1.2;1" dur="1.8s" repeatCount="indefinite" additive="sum" />
+                </polygon>
+                {/* Falda */}
+                <path d="M65 145 Q67 175 75 185 L125 185 Q133 175 135 145 Z" fill="#C06DD6" />
+                {/* Zapatos */}
+                <ellipse cx="82" cy="188" rx="10" ry="4" fill="#2D1B69" />
+                <ellipse cx="118" cy="188" rx="10" ry="4" fill="#2D1B69" />
+              </svg>
+              <style>{`@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }`}</style>
+
               <h1 className="text-white text-2xl font-black mb-3" style={{ fontFamily: 'Nunito, sans-serif' }}>Bienvenida a tu app de negocio 🎉</h1>
               <p className="text-sm mb-10" style={{ color: 'rgba(255,255,255,0.7)', maxWidth: 280 }}>En 3 minutos configuramos cómo vas a manejar tu dinero para que siempre sepas a dónde va cada peso.</p>
               <Button onClick={() => setStep(1)} className="w-full max-w-xs h-14 text-base font-bold rounded-2xl text-white" style={{ background: '#1a103f' }}>¡Empezamos! →</Button>
@@ -310,6 +357,45 @@ export function OnboardingFlow({ skipWelcome = false, onComplete, initialValues 
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4">
                   <div className="rounded-2xl p-4" style={{ background: '#F0E6F6' }}>
                     <p className="text-xs" style={{ color: '#2D1B69' }}>Sin problema. Toda tu ganancia va a necesidades y deseos. Puedes activar el ahorro cuando quieras desde <strong>Mi Cuenta</strong>.</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Mini demo ahorro educativa */}
+              {wantsToSave === true && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-5">
+                  <div className="rounded-2xl p-5 space-y-3" style={{ background: 'linear-gradient(135deg, #1a103f, #2D1B69)' }}>
+                    <p className="text-sm font-bold text-white">💡 Ejemplo: ¿Quieres irte de vacaciones?</p>
+                    <div className="space-y-2 text-xs text-white/80">
+                      <p>🏖️ Meta: <strong className="text-white">Vacaciones $15,000</strong> en 12 meses</p>
+                      <p>👟 Costo Price promedio por par: <strong className="text-white">$850</strong></p>
+                      <p>📈 Con incremento del 54%: Precio cliente <strong className="text-white">$1,309</strong></p>
+                      <p>💰 Ganancia bruta por par: <strong className="text-white">$459</strong></p>
+                      <p>👛 30% ganancia personal = <strong className="text-white">$137.70</strong></p>
+                      <p>⭐ 20% de ese 30% para ahorro = <strong className="text-white">$27.54</strong> por par vendido</p>
+                    </div>
+                    <div className="pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+                      <p className="text-sm font-bold text-center" style={{ color: '#E8A5F0' }}>
+                        🏖️ Vacaciones de $15,000 = vender ~12 pares extra por semana durante 12 meses
+                      </p>
+                    </div>
+                    {/* Mini progress bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-white/60">
+                        <span>Progreso ejemplo</span>
+                        <span>~46 pares/mes (~12/semana)</span>
+                      </div>
+                      <div className="w-full h-2.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: 'linear-gradient(90deg, #D4A017, #E8A5F0)' }}
+                          initial={{ width: '0%' }}
+                          animate={{ width: '75%' }}
+                          transition={{ duration: 1.5, ease: 'easeOut' }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-center font-medium" style={{ color: '#D4A017' }}>¡Tú puedes lograrlo! 💪</p>
+                    </div>
                   </div>
                 </motion.div>
               )}
