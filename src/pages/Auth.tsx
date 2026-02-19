@@ -26,7 +26,6 @@ export default function Auth() {
   const handleTesterLogin = async () => {
     setTesterLoading(true);
     try {
-      await supabase.rpc('reset_tester_account');
       const { error } = await signIn('tester@demo.com', 'tester123');
       if (error) throw error;
     } catch (err: any) {
