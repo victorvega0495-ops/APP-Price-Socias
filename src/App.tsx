@@ -12,6 +12,7 @@ import Clients from "./pages/Clients";
 import Inventory from "./pages/Inventory";
 import Sell from "./pages/Sell";
 import Challenge from "./pages/Challenge";
+import RetoGuia from "./pages/RetoGuia";
 import Tips from "./pages/Tips";
 import Profile from "./pages/Profile";
 import Onboarding from "./pages/Onboarding";
@@ -60,6 +61,7 @@ function ProtectedRoutes() {
         <Route path="/inventario" element={<Inventory />} />
         <Route path="/vender" element={<Sell />} />
         <Route path="/mis-metas" element={<Challenge />} />
+        <Route path="/reto-guia" element={<RetoGuia />} />
         <Route path="/tips" element={<Tips />} />
         <Route path="/perfil" element={<Profile />} />
         <Route path="*" element={<NotFound />} />

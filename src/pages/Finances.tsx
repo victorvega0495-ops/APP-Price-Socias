@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,11 +8,103 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, History, Pencil, Star, AlertTriangle, CheckCircle2, MinusCircle } from 'lucide-react';
+import { TrendingUp, History, Pencil, Star, AlertTriangle, CheckCircle2, MinusCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+function SemaforoSemanal({ weeks, monthlyGoal, pctGanancia, year, month, userId }: { weeks: WeekData[]; monthlyGoal: number; pctGanancia: number; year: number; month: number; userId?: string }) {
+  const [openWeek, setOpenWeek] = useState<number | null>(null);
+  const [weekDetails, setWeekDetails] = useState<Record<number, { numVentas: number; bestDay: string; clientCount: number }>>({});
+  const metaSemanal = monthlyGoal > 0 ? (monthlyGoal / pctGanancia) / 4 : 0;
+  const now = new Date();
+  const currentWeek = Math.min(4, Math.ceil(now.getDate() / 7));
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const weekRanges: Record<number, [number, number]> = { 1: [1, 7], 2: [8, 14], 3: [15, 21], 4: [22, daysInMonth] };
+  const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+  const toggleWeek = async (w: number) => {
+    if (openWeek === w) { setOpenWeek(null); return; }
+    setOpenWeek(w);
+    if (!userId || weekDetails[w]) return;
+    const [startDay, endDay] = weekRanges[w];
+    const startDate = `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+    const { data: purchases } = await supabase.from('purchases').select('amount, purchase_date, client_id').eq('user_id', userId).gte('purchase_date', startDate).lte('purchase_date', endDate);
+    if (purchases) {
+      const byDay: Record<string, number> = {};
+      const clients = new Set<string>();
+      purchases.forEach(p => {
+        const d = p.purchase_date;
+        byDay[d] = (byDay[d] || 0) + Number(p.amount);
+        if (p.client_id) clients.add(p.client_id);
+      });
+      const bestDateStr = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0]?.[0];
+      const bestDay = bestDateStr ? dayNames[new Date(bestDateStr + 'T12:00:00').getDay()] : '—';
+      setWeekDetails(prev => ({ ...prev, [w]: { numVentas: purchases.length, bestDay, clientCount: clients.size } }));
+    }
+  };
+
+  const getColor = (w: WeekData, weekNum: number) => {
+    if (weekNum > currentWeek) return '#d1d5db';
+    if (w.total_sales === 0) return '#ef4444';
+    if (metaSemanal > 0 && w.total_sales >= metaSemanal) return '#22c55e';
+    if (w.total_sales > 0) return '#f59e0b';
+    return '#d1d5db';
+  };
+
+  const getSummary = (w: WeekData, weekNum: number) => {
+    if (weekNum > currentWeek) return 'Semana futura';
+    if (w.total_sales === 0) return 'Sin ventas';
+    const ganancia = w.total_sales * pctGanancia;
+    return `${formatCurrency(w.total_sales)} vendido · ${formatCurrency(ganancia)} ganancia`;
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+      <h3 className="text-sm font-semibold mb-2" style={{ color: '#2D1B69' }}>Semáforo semanal</h3>
+      <div className="space-y-2">
+        {weeks.map((w) => {
+          const color = getColor(w, w.week);
+          const isOpen = openWeek === w.week;
+          const details = weekDetails[w.week];
+          const ganancia = w.total_sales * pctGanancia;
+          const margen = w.total_sales > 0 ? Math.round((ganancia / w.total_sales) * 100) : 0;
+          return (
+            <div key={w.week} className="bg-white rounded-xl overflow-hidden" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+              <button onClick={() => toggleWeek(w.week)} className="w-full flex items-center gap-3 p-3 text-left">
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold" style={{ color: '#2D1B69' }}>Semana {w.week}</p>
+                  <p className="text-[10px]" style={{ color: '#8a8a9a' }}>{getSummary(w, w.week)}</p>
+                </div>
+                {isOpen ? <ChevronUp className="w-4 h-4 shrink-0" style={{ color: '#8a8a9a' }} /> : <ChevronDown className="w-4 h-4 shrink-0" style={{ color: '#8a8a9a' }} />}
+              </button>
+              <AnimatePresence>
+                {isOpen && w.total_sales > 0 && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                    <div className="px-4 pb-3 space-y-1.5 text-xs" style={{ color: '#2D1B69' }}>
+                      <div className="flex justify-between"><span>Total vendido</span><span className="font-semibold">{formatCurrency(w.total_sales)}</span></div>
+                      <div className="flex justify-between"><span>Tu ganancia</span><span className="font-semibold">{formatCurrency(ganancia)} ({margen}%)</span></div>
+                      {details && (
+                        <>
+                          <div className="flex justify-between"><span>Número de ventas</span><span className="font-semibold">{details.numVentas}</span></div>
+                          <div className="flex justify-between"><span>Mejor día</span><span className="font-semibold capitalize">{details.bestDay}</span></div>
+                          <div className="flex justify-between"><span>Clientas que compraron</span><span className="font-semibold">{details.clientCount}</span></div>
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
 
 const HEADER_GRADIENT = 'linear-gradient(145deg, #2D1B69 0%, #6B2FA0 45%, #C06DD6 100%)';
 const PILL_BG = 'rgba(255,255,255,0.15)';
@@ -227,27 +319,8 @@ export default function Finances() {
               </motion.div>
             )}
 
-            {/* Semáforo */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-              <h3 className="text-sm font-semibold mb-2" style={{ color: '#2D1B69' }}>Semáforo semanal</h3>
-              <div className="space-y-2">
-                {weeks.map((w) => {
-                  const hasData = w.total_sales > 0;
-                  const isHealthy = hasData && w.total_sales * pctReposicion >= w.product_cost;
-                  const isUnhealthy = hasData && w.total_sales * pctReposicion < w.product_cost;
-                  return (
-                    <div key={w.week} className="flex items-center gap-3 rounded-xl p-3 bg-white" style={{ boxShadow: CARD_SHADOW }}>
-                      {!hasData ? <MinusCircle className="w-5 h-5 shrink-0" style={{ color: '#8a8a9a' }} /> : isHealthy ? <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" /> : <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold" style={{ color: '#2D1B69' }}>Semana {w.week}</p>
-                        {hasData ? <p className="text-[10px]" style={{ color: '#8a8a9a' }}>Venta: {formatCurrency(w.total_sales)} · Costo: {formatCurrency(w.product_cost)}</p> : <p className="text-[10px]" style={{ color: '#8a8a9a' }}>Sin datos</p>}
-                      </div>
-                      {isUnhealthy && <p className="text-[9px] text-destructive font-medium shrink-0">Revisa tu precio</p>}
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
+            {/* Semáforo desplegable */}
+            <SemaforoSemanal weeks={weeks} monthlyGoal={monthlyGoal} pctGanancia={pctGanancia} year={year} month={month} userId={user?.id} />
           </div>
         )}
 

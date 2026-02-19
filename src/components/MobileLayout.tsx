@@ -8,7 +8,7 @@ const tabs = [
   { to: '/finanzas', icon: DollarSign, label: 'Finanzas' },
   { to: '/vender', icon: ShoppingBag, label: 'Vender' },
   { to: '/clientas', icon: Users, label: 'Clientas' },
-  { to: '/mis-metas', icon: Target, label: 'Metas' },
+  { to: '/reto-guia', icon: Target, label: 'Reto 🏆' },
 ];
 
 export default function MobileLayout({ children }: { children: React.ReactNode }) {

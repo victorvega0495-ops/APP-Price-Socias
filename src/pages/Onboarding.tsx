@@ -194,6 +194,36 @@ export function OnboardingFlow({ skipWelcome = false, onComplete, initialValues 
                   <span className="text-xl font-black font-nunito" style={{ color: '#6B2FA0' }}>{pctGanancia}%</span>
                 </div>
                 <Slider value={[pctGanancia]} onValueChange={([v]) => setPctGanancia(v)} min={10} max={50} step={1} />
+
+                {/* 3 Cubetas animadas */}
+                <div className="flex gap-2 mt-2">
+                  {[
+                    { label: '🪣 Producto', pct: pctReposicion, color: '#2D1B69' },
+                    { label: '🪣 Ganancia', pct: pctGanancia, color: '#6B2FA0' },
+                    { label: '🪣 Gastos', pct: pctGastos, color: '#C06DD6' },
+                  ].map((bucket) => (
+                    <div key={bucket.label} className="flex-1 text-center">
+                      <div className="relative mx-auto w-full h-16 rounded-lg overflow-hidden" style={{ background: '#F0E6F6' }}>
+                        <div
+                          className="absolute bottom-0 left-0 right-0 rounded-b-lg"
+                          style={{
+                            height: `${Math.min(100, Math.max(0, bucket.pct))}%`,
+                            background: bucket.color,
+                            transition: 'height 0.3s ease',
+                          }}
+                        />
+                      </div>
+                      <p className="text-[10px] mt-1 font-medium" style={{ color: '#2D1B69' }}>{bucket.label}</p>
+                      <p className="text-[10px] font-bold" style={{ color: bucket.color }}>{bucket.pct}%</p>
+                    </div>
+                  ))}
+                </div>
+                {pctReposicion >= 50 && pctGanancia >= 10 ? (
+                  <p className="text-[11px] text-center" style={{ color: '#22c55e' }}>✅ Las 3 cubetas llenas = negocio sano</p>
+                ) : (
+                  <p className="text-[11px] text-center" style={{ color: '#f59e0b' }}>⚠️ Una cubeta se vacía — algo se ve afectado</p>
+                )}
+
                 {pctGanancia > 30 && (
                   <div className="flex items-start gap-2 p-2 rounded-lg" style={{ background: '#FFF3E0' }}>
                     <span className="text-sm">⚠️</span>
