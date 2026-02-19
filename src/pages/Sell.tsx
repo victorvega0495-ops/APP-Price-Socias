@@ -191,14 +191,14 @@ export default function Sell() {
   const profit = totalCharged - sumCost;
   const margin = totalCharged > 0 ? (profit / totalCharged) * 100 : 0;
 
-  // Credit payment dates (every 30 days for receipt)
+  // Credit payment dates (weekly: day 0, +7, +14, +21, +28, +35, +42...)
   const creditPaymentDates = useMemo(() => {
     if (regSaleType !== 'credit') return [];
     const dates: string[] = [];
     const today = new Date();
-    for (let i = 1; i <= regNumPayments; i++) {
+    for (let i = 0; i < regNumPayments; i++) {
       const d = new Date(today);
-      d.setDate(today.getDate() + i * 30);
+      d.setDate(today.getDate() + i * 7);
       dates.push(d.toISOString().split('T')[0]);
     }
     return dates;
@@ -755,7 +755,7 @@ export default function Sell() {
               </div>
               {creditPaymentDates.length > 0 && totalCharged > 0 && (
                 <div className="text-xs space-y-0.5 pt-1" style={{ color: '#8a8a9a' }}>
-                  <p className="font-semibold" style={{ color: '#6B2FA0' }}>{regNumPayments} pagos de {formatCurrencyDecimals(regPaymentAmt)}</p>
+                  <p className="font-semibold" style={{ color: '#6B2FA0' }}>{regNumPayments} pagos semanales de {formatCurrencyDecimals(regPaymentAmt)}</p>
                   {creditPaymentDates.map((d, i) => (
                     <p key={i}>Pago {i + 1}: {formatDateEs(d)}</p>
                   ))}
@@ -891,21 +891,35 @@ export default function Sell() {
                       <p className="text-[10px] mt-1" style={{ color: '#8a8a9a' }}>
                         Incremento: {calcEditableIncremento}% sobre costo
                       </p>
-                      {/* Validation alerts */}
-                      {calcPriceBelowRecommended && (
-                        <div className="mt-2 p-2.5 rounded-xl" style={{ background: 'rgba(192,109,214,0.1)' }}>
-                          <p className="text-[11px] font-medium" style={{ color: '#C06DD6' }}>
-                            ⚠️ Este precio está por debajo de tu metodología 3C. Tu ganancia sería solo {formatCurrency(calcRealProfit)} ({calcRealPct}%) en lugar del {pctGanancia}% que configuraste.
-                          </p>
-                        </div>
-                      )}
-                      {calcPriceOk && (
-                        <div className="mt-2 p-2.5 rounded-xl" style={{ background: 'rgba(34,197,94,0.1)' }}>
-                          <p className="text-[11px] font-medium" style={{ color: 'hsl(142,71%,35%)' }}>
-                            ✅ Precio correcto para tu metodología
-                          </p>
-                        </div>
-                      )}
+                      {/* Zonas de color por incremento */}
+                      {partnerPrice > 0 && calcEditablePrice > 0 && (() => {
+                        const inc = calcEditableIncremento;
+                        if (inc >= 54) return (
+                          <div className="mt-2 p-2.5 rounded-xl" style={{ background: 'rgba(34,197,94,0.1)' }}>
+                            <p className="text-[11px] font-medium" style={{ color: '#22c55e' }}>
+                              🟢 ¡Negocio sano! Cobras bien y tu negocio crece.
+                            </p>
+                          </div>
+                        );
+                        if (inc >= 40) return (
+                          <div className="mt-2 p-2.5 rounded-xl" style={{ background: 'rgba(245,158,11,0.1)' }}>
+                            <p className="text-[11px] font-medium" style={{ color: '#f59e0b' }}>
+                              🟡 Tienes áreas de oportunidad para crecer.
+                            </p>
+                          </div>
+                        );
+                        return (
+                          <div className="mt-2 p-2.5 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)' }}>
+                            <p className="text-[11px] font-medium" style={{ color: '#ef4444' }}>
+                              🔴 Tienes áreas de oportunidad para crecer.
+                            </p>
+                            <ul className="text-[10px] mt-1 ml-4 list-disc" style={{ color: '#ef4444' }}>
+                              <li>No repongo producto esta quincena</li>
+                              <li>Me quedo con menos ganancia</li>
+                            </ul>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 
