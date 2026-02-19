@@ -63,12 +63,10 @@ export default function Auth() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
           {/* Logo */}
-          <div className="text-center mb-8">
-            <img src="/logo-um.png" alt="Universidad de la Mujer" className="h-10 object-contain mx-auto mb-3" />
-            <div style={{ color: 'white', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 800, fontSize: '20px', letterSpacing: '0.05em', opacity: 0.9, marginBottom: '12px' }}>PRICE SHOES</div>
+          <div className="text-center mb-12">
+            <img src="/logo-um.png" alt="Universidad de la Mujer" className="h-10 object-contain mx-auto mb-4" />
+            <div style={{ color: 'white', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 800, fontSize: '20px', letterSpacing: '0.05em', opacity: 0.9, marginBottom: '8px' }}>PRICE SHOES</div>
             <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.7)' }}>App para Socias</p>
-            <h1 className="text-2xl font-bold text-white mt-2 font-nunito">Mi Negocio Price</h1>
-            <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Tu herramienta para el Reto 0 a 10,000</p>
           </div>
 
           {/* Form */}
